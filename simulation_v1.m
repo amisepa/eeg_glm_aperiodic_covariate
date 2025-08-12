@@ -243,7 +243,7 @@ plot(f, glm_lin_b(:,4), 'LineWidth', 1.2);   % baseline
 yline(0,'--','HandleVisibility','off');
 xlabel('Frequency (Hz)'); ylabel('\beta (linear model)');
 title('GLM coefficients vs frequency (linear \Delta)');
-legend({'offset','exponent','baseline'},'Location','best');
+legend({'bsl offset','exponent','alpha power'}, 'Location','best');
 
 % dB model betas
 nexttile; hold on;
@@ -253,6 +253,6 @@ plot(f, glm_db_b(:,4), 'LineWidth', 1.2);    % baseline dB
 yline(0,'--','HandleVisibility','off');
 xlabel('Frequency (Hz)'); ylabel('\beta (dB model)');
 title('GLM coefficients vs frequency (dB \Delta)');
-legend({'offset','exponent','baseline dB'},'Location','best');
+legend({'bsl offset','exponent','alpha power'}, 'Location','best');
 
 exportgraphics(gcf,'fig3.png','Resolution',300);
