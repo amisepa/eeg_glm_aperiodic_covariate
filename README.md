@@ -1,5 +1,5 @@
 # eeg_glm_aperiodic_covariate
-Conventional baseline correction in EEG time–frequency analysis can spuriously mix oscillatory changes with broadband (aperiodic) shifts when prestimulus baseline aperiodic parameters differ (Gyurkovics et al., 2021; Donoghue et al., 2020). This simple simulation illustrates this effect and applies a GLM-based solution that includes the aperiodic offset and exponent as covariates to address the issue (Wen & Liu, 2016; Alday, 2019).
+Conventional baseline correction in EEG time, frequency, or time-frequency analysis can spuriously mix oscillatory changes with broadband (aperiodic) shifts when prestimulus baseline aperiodic parameters differ (Gyurkovics et al., 2021; Donoghue et al., 2020). This simple simulation illustrates this effect and applies a GLM-based solution that includes the aperiodic offset and exponent as covariates to address the issue (Wen & Liu, 2016; Alday, 2019).
 
 ### Figure 1 — Illustration of the baseline correction bias
 
