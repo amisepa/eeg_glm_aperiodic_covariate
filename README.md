@@ -11,7 +11,7 @@ The figure shows mean baseline vs. post-stimulus spectra for a simulated dataset
 
 ### Figure 2 — GLM with aperiodic covariates
 
-![Figure 2](https://github.com/amisepa/eeg_glm_aperiodic_covariate/blob/main/fig1.png?raw=true&v=2)
+![Figure 2](https://github.com/amisepa/eeg_glm_aperiodic_covariate/blob/main/fig2.png?raw=true&v=2)
 
 
 The figure shows how including baseline aperiodic offset, exponent, and alpha power as covariates in a GLM recovers the *true* oscillatory change without bias from broadband shifts. Unlike the standard dB baseline correction, the GLM approach yields estimates that are independent of baseline alpha power.
@@ -19,7 +19,7 @@ The figure shows how including baseline aperiodic offset, exponent, and alpha po
 
 ### Figure 3 — GLM diagnostics
 
-![Figure 3](https://github.com/amisepa/eeg_glm_aperiodic_covariate/blob/main/fig1.png?raw=true&v=2)
+![Figure 3](https://github.com/amisepa/eeg_glm_aperiodic_covariate/blob/main/fig3.png?raw=true&v=2)
 
 Diagnostic plot showing GLM coefficients (β) for **bsl offset**, **exponent**, and **alpha power** across frequencies.  
 Left panel: model fitted to changes in linear power.  
