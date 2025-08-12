@@ -20,8 +20,8 @@ The figure shows how including baseline aperiodic offset, exponent, and alpha po
 
 ![Figure 3: GLM diagnostics](https://github.com/amisepa/eeg_glm_aperiodic_covariate/blob/main/fig3.png?raw=true)
 
-Diagnostic plot showing GLM coefficients (β) for baseline aperiodic offset, exponent, and baseline alpha power across frequencies. 
+Diagnostic plot showing GLM coefficients (β) for **bsl offset**, **exponent**, and **alpha power** across frequencies.  
+Left panel: model fitted to changes in linear power.  
+Right panel: model fitted to changes in dB power.  
+These coefficients explain how baseline spectral properties influence apparent changes and why the GLM adjustment removes broadband bias.
 
-Left panel: model fitted to changes in linear power.  Right panel: model fitted to changes in dB power.  
-
-The coefficients reveal how baseline spectral parameters influence apparent changes and why the standard dB approach can misattribute broadband shifts to oscillatory changes.
