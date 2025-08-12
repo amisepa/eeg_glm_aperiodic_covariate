@@ -70,7 +70,7 @@ delta_adj_mean = betas(1);
 fprintf('GLM adjusted change:  mean = %.4f uV^2/Hz (intercept)\n', delta_adj_mean);
 
 
-%% Figure 1: spectra, differences, and GLM-adjusted views (4x2 tiles)
+%% Figure 1: Illustrating the issue
 
 % Precompute means and raw differences
 m0     = mean(P0,1);
@@ -105,7 +105,7 @@ m1_glm_lin = m0 + glm_lin_int;       % adjusted post PSD in linear units
 m1_glm_db  = m0_db + glm_db_int;     % adjusted post PSD in dB
 
 figure('Color','w');
-tiledlayout(4,2,'Padding','compact','TileSpacing','compact');
+tiledlayout(2,2,'Padding','compact','TileSpacing','compact');
 
 % Row 1: mean spectra (linear)
 nexttile; hold on;
@@ -148,6 +148,14 @@ yline(0,'--','HandleVisibility','off');
 xlim([min(f) max(f)]); ylim(yld_db);
 xlabel('Frequency (Hz)'); ylabel('\Delta Power (dB)');
 title('Post vs Baseline (dB = 10·log10(Post/Baseline))');
+
+exportgraphics(gcf, 'fig1.png', 'Resolution', 300);
+
+
+%% FIG 2: Illustrating the GLM solution
+
+figure('Color','w');
+tiledlayout(2,2,'Padding','compact','TileSpacing','compact');
 
 % Row 3: GLM-adjusted PSDs (linear)
 nexttile; hold on;
@@ -193,9 +201,9 @@ xlim([min(f) max(f)]); ylim(yld_db_glm);
 xlabel('Frequency (Hz)'); ylabel('\Delta Power adj (dB)');
 title('GLM-adjusted 10·log10(Post/Baseline)');
 
-exportgraphics(gcf, 'fig1.png', 'Resolution', 300);
+exportgraphics(gcf, 'fig2.png', 'Resolution', 300);
 
-%% Diagnostics: per-frequency GLM coefficients (linear and dB)
+%% FIG 3: Diagnostics: per-frequency GLM coefficients (linear and dB)
 
 % Refit frequency-wise GLMs with z-scored predictors to get comparable betas
 glm_lin_b = zeros(nF,4);   % columns: [intercept, offset, exponent, baseline]
@@ -247,4 +255,4 @@ xlabel('Frequency (Hz)'); ylabel('\beta (dB model)');
 title('GLM coefficients vs frequency (dB \Delta)');
 legend({'offset','exponent','baseline dB'},'Location','best');
 
-exportgraphics(gcf,'fig2.png','Resolution',300);
+exportgraphics(gcf,'fig3.png','Resolution',300);
