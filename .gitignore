@@ -1,0 +1,16 @@
+# Simulation outputs are regenerable from code/; too large to version.
+results/*.mat
+results/*.log
+# Real-data derivatives are regenerable from OpenNeuro via code/hbn_extract_psd.py.
+results/hbn_chan.csv
+# Per-subject derivatives carry subject IDs, age and sex: keep them local.
+results/hbn_roi.csv
+results/hbn_kp_fits.csv
+results/hbn_ctrl_band.csv
+results/hbn_ctrl_window.csv
+results/hbn_topography*.npz
+# Python bytecode
+__pycache__/
+*.pyc
+# Manuscript drafts are kept outside the repository.
+paper/
