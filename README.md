@@ -37,6 +37,9 @@ The accompanying paper is in preparation; a preprint will be linked here.
 - Assuming the wrong λ biases condition effects by more than 50%.
 - Censored regression is the least biased of the simple aperiodic
   estimators.
+- In HBN (n = 2,034, ages 5-22), eyes-closed alpha power decreases with age
+  when the background is removed additively (λ = 0) and increases when it
+  is removed as specparam does (λ = 1).
 - In HBN, the eyes-closed contrast returns a calibrated λ̂ of about 0.85.
   Eye closure also changes arousal, ocular and muscle activity, and no test
   available in these data separates those from coupling, so λ is not
@@ -57,6 +60,7 @@ The accompanying paper is in preparation; a preprint will be linked here.
       hbn_lambda.py              coupling estimate and (p, q) tests
       hbn_controls.py            window and band specificity controls
       hbn_kp.py, ap_models.py    knee+plateau aperiodic model
+      hbn_age_alpha.py           alpha vs age under each separation rule
       hbn_topography*.py         topographic test (fitted and fit-free)
       sim_*.py                   calibration curves and null simulations
       joint_fit.py               joint aperiodic + peak fit
@@ -82,6 +86,7 @@ Python 3.10+ with numpy, scipy, pandas, statsmodels and mne:
     python code/hbn_lambda.py
     python code/hbn_controls.py
     python code/hbn_kp.py
+    python code/hbn_age_alpha.py
     # 3. calibration and topographic analyses
     python code/sim_calibration.py
     python code/hbn_topography.py --workers 8
