@@ -153,6 +153,8 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--model", default="fixed", choices=["fixed", "knee_plateau"])
     ap.add_argument("--workers", type=int, default=1)
+    ap.add_argument("--out", default="",
+                    help="append a summary row per fit range to this CSV")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
 
@@ -195,6 +197,7 @@ def main():
     print(f"{'fit range':>10} {'censor':>8} {'n':>4} {'r(dExp,dLogA)':>14} "
           f"{'r(dLogB,dLogA)':>15} {'dExp post':>10} {'dExp all':>9} "
           f"{'dLogB post':>11}")
+    summary = []
     fl = out.pop("flanks")
     for spec, rows in out.items():
         DE = np.array([x[0] for x in rows])
@@ -208,6 +211,12 @@ def main():
               f" {len(rows):>4} {rEA:>+14.3f} {rBA:>+15.3f} "
               f"{np.nanmean(DE[:, post]):>+10.3f} {np.nanmean(DE):>+9.3f} "
               f"{np.nanmean(DB[:, post]):>+11.3f}")
+        summary.append(dict(fit_lo=spec[0][0], fit_hi=spec[0][1],
+                            censor_lo=spec[1][0], censor_hi=spec[1][1],
+                            harmonic=a.harmonic, iaf_shift=a.iaf_shift,
+                            model=a.model, n=len(rows), r_exp_alpha=rEA,
+                            r_b_alpha=rBA,
+                            d_exp_post=float(np.nanmean(DE[:, post]))))
 
     print("\nfit-free flank test: spatial r(map d_log P(band), "
           "map d_log P(IAF+/-2))")
@@ -217,6 +226,12 @@ def main():
         mF, mA = np.nanmean(DF, 0), np.nanmean(DA, 0)
         print(f"  {k:>5}: r = {np.corrcoef(mF, mA)[0, 1]:+.3f}, "
               f"mean d_log P = {np.nanmean(DF):+.4f} (n = {len(fl)})")
+
+    if a.out:
+        import pandas as pd
+        df = pd.DataFrame(summary)
+        df.to_csv(a.out, mode="a", index=False,
+                  header=not os.path.exists(a.out))
 
 
 if __name__ == "__main__":

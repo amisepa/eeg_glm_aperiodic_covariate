@@ -64,6 +64,7 @@ The accompanying paper is in preparation; a preprint will be linked here.
       hbn_topography*.py         topographic test (fitted and fit-free)
       sim_*.py                   calibration curves and null simulations
       joint_fit.py               joint aperiodic + peak fit
+      figures/make_figures.py    Figures 1-5 of the paper
     results/                     group-level outputs (CSV)
     archive/                     superseded first simulations (see its README)
 
@@ -90,7 +91,9 @@ Python 3.10+ with numpy, scipy, pandas, statsmodels and mne:
     # 3. calibration and topographic analyses
     python code/sim_calibration.py
     python code/hbn_topography.py --workers 8
-    python code/sim_topography_leakage.py --workers 8
+    python code/sim_topography_leakage.py --workers 8         --out results/sim_topography_null.csv
+    # 4. figures
+    python code/figures/make_figures.py figures
 
 Per-subject derivatives are not included, because they contain participant
 age and sex. All of them can be regenerated from the public data.
