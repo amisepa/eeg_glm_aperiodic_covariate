@@ -11,8 +11,9 @@ correlation it reports is produced by the analysis itself.
 
 Usage: python sim_topography_leakage.py [--n 200] [--harmonic 0.15]
        [--iaf-shift -0.3] [--model fixed|knee_plateau] [--workers 12]
-Needs results/hbn_alpha_rel_heights.npz (created from the HBN PSDs on first
-run if missing).
+       [--rebuild-heights] [--heights-n 0]
+Needs results/hbn_alpha_rel_heights.npz (created from all HBN PSDs if
+missing or with --rebuild-heights).
 """
 import argparse
 import glob
@@ -35,33 +36,46 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RES = os.path.join(HERE, "..", "results")
 
 
-def real_heights(psd_dir, n=150):
-    """Median over subjects of per-channel alpha band a/b, EO and EC."""
-    files = sorted(glob.glob(os.path.join(psd_dir, "*.npz")))[:2 * n:2]
-    R = {"eo": [], "ec": []}
-    ch = None
-    for p in files:
-        d = np.load(p, allow_pickle=True)
-        f0 = d["freqs"].astype(float)
-        sel = (f0 >= 2) & (f0 <= 40)
-        f = f0[sel]
-        keep = ~((f >= 6) & (f <= 16))
-        c = [str(x) for x in d["ch_names"]]
-        if len(c) != 129:
-            continue
-        ch = c
-        ix = [c.index(r) for r in ROI]
-        iaf = peak_freq(d["ec"][ix][:, sel].mean(0), f, keep)
-        if iaf is None:
-            continue
-        am = (f >= iaf - 2) & (f <= iaf + 2)
-        for cond in R:
-            P = np.clip(d[cond][:, sel].astype(float), 1e-12, None)
-            o, e = ols_channels(np.log10(P), np.log10(f), keep)
-            b = ((10.0 ** o)[:, None] / f[am][None, :] ** e[:, None]).mean(1)
-            R[cond].append(P[:, am].mean(1) / b - 1)
-    return (np.nanmedian(np.array(R["eo"]), 0),
-            np.nanmedian(np.array(R["ec"]), 0), ch)
+def subject_heights(p):
+    """Per-channel alpha band a/b (EO, EC) and channel names for one file."""
+    d = np.load(p, allow_pickle=True)
+    f0 = d["freqs"].astype(float)
+    sel = (f0 >= 2) & (f0 <= 40)
+    f = f0[sel]
+    keep = ~((f >= 6) & (f <= 16))
+    c = [str(x) for x in d["ch_names"]]
+    if len(c) != 129:
+        return None
+    ix = [c.index(r) for r in ROI]
+    iaf = peak_freq(d["ec"][ix][:, sel].mean(0), f, keep)
+    if iaf is None:
+        return None
+    am = (f >= iaf - 2) & (f <= iaf + 2)
+    out = []
+    for cond in ("eo", "ec"):
+        P = np.clip(d[cond][:, sel].astype(float), 1e-12, None)
+        o, e = ols_channels(np.log10(P), np.log10(f), keep)
+        b = ((10.0 ** o)[:, None] / f[am][None, :] ** e[:, None]).mean(1)
+        out.append(P[:, am].mean(1) / b - 1)
+    return out[0], out[1], c
+
+
+def real_heights(psd_dir, n=0, workers=1):
+    """Median over subjects of per-channel alpha band a/b, EO and EC.
+
+    n = 0 uses every PSD file; otherwise n files evenly spaced in the list.
+    """
+    files = sorted(glob.glob(os.path.join(psd_dir, "*.npz")))
+    if n:
+        files = [files[i] for i in np.linspace(0, len(files) - 1, n).astype(int)]
+    if workers > 1:
+        with Pool(workers) as pool:
+            res = pool.map(subject_heights, files, chunksize=8)
+    else:
+        res = [subject_heights(p) for p in files]
+    res = [r for r in res if r is not None]
+    return (np.nanmedian(np.array([r[0] for r in res]), 0),
+            np.nanmedian(np.array([r[1] for r in res]), 0), res[0][2], len(res))
 
 
 def aperiodic(fg, b, chi, knee_freq, plateau):
@@ -157,15 +171,21 @@ def main():
                     help="append a summary row per fit range to this CSV")
     ap.add_argument("--out-flanks", default="",
                     help="append the fit-free flank statistics to this CSV")
+    ap.add_argument("--heights-n", type=int, default=0,
+                    help="participants used for the HBN alpha heights (0 = all)")
+    ap.add_argument("--rebuild-heights", action="store_true",
+                    help="recompute results/hbn_alpha_rel_heights.npz")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
 
     hfile = os.path.join(RES, "hbn_alpha_rel_heights.npz")
-    if not os.path.exists(hfile):
-        heo, hec, ch = real_heights(a.psd_dir)
-        np.savez(hfile, eo=heo, ec=hec, ch=np.array(ch))
+    if a.rebuild_heights or not os.path.exists(hfile):
+        heo, hec, ch, nsub = real_heights(a.psd_dir, a.heights_n, a.workers)
+        np.savez(hfile, eo=heo, ec=hec, ch=np.array(ch), n_subjects=nsub)
     h = np.load(hfile)
     ch = [str(c) for c in h["ch"]]
+    if "n_subjects" in h:
+        print(f"alpha heights from {int(h['n_subjects'])} HBN participants")
     # band-mean a/b over IAF +/- 2 Hz is ~0.75 of the peak's relative height
     rel_eo = np.maximum(h["eo"], 0.05) / 0.75
     rel_ec = np.maximum(h["ec"], 0.05) / 0.75

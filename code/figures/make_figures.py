@@ -63,6 +63,13 @@ def panel(ax, letter):
             fontweight="bold", va="bottom", ha="left")
 
 
+def null_bar(ax, x, lo, hi, min_h=0.02):
+    """Range of a null simulation as a grey bar, visible even when lo == hi."""
+    pad = max(0.0, (min_h - (hi - lo)) / 2)
+    ax.plot([x, x], [lo - pad, hi + pad], color=GREY, lw=6,
+            solid_capstyle="butt", alpha=0.6)
+
+
 def save(fig, outdir, name):
     for ext in ("png", "pdf"):
         fig.savefig(os.path.join(outdir, f"{name}.{ext}"), bbox_inches="tight")
@@ -464,8 +471,7 @@ def fig5(outdir):
     for j, (lab, tag) in enumerate(specs):
         lo_, hi_ = (float(v) for v in lab.split("-"))
         nn = null[(null.fit_lo == lo_) & (null.fit_hi == hi_)].r_exp_alpha
-        ax.plot([j, j], [nn.min(), nn.max()], color=GREY, lw=6,
-                solid_capstyle="butt", alpha=0.6)
+        null_bar(ax, j, nn.min(), nn.max())
         d = np.load(os.path.join(RES, f"hbn_topography{tag}.npz"))
         mE, mA = np.nanmean(d["d_exponent"], 0), np.nanmean(d["d_log_a"], 0)
         g = np.isfinite(mE) & np.isfinite(mA)
@@ -491,8 +497,7 @@ def fig5(outdir):
     fn = pd.read_csv(os.path.join(RES, "sim_topography_null_flanks.csv"))
     for j, (fl, lab) in enumerate((("low", "2-4 Hz"), ("high", "30-40 Hz"))):
         nn = fn[fn.flank == fl].r_flank_alpha
-        ax.plot([j, j], [nn.min(), nn.max()], color=GREY, lw=6,
-                solid_capstyle="butt", alpha=0.6)
+        null_bar(ax, j, nn.min(), nn.max())
         r = fr[(fr.flank == fl) & (fr.group == "all")].iloc[0]
         ax.errorbar(j, r.r, yerr=[[r.r - r.lo], [r.hi - r.r]], fmt="o", color=C0,
                     ms=5, lw=1, capsize=0)

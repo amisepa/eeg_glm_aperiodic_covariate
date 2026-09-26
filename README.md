@@ -110,10 +110,12 @@ specparam, matplotlib and h5py:
     #    likewise 2,30 (_f2-30), and 5,40 with --censor 7,16 (_f5-40)
     python code/hbn_topography_flanks.py
     python code/spatial_neff.py
-    python code/sim_topography_leakage.py --workers 8 \
+    #    null: as many simulated participants as real ones; the CSVs are
+    #    appended to, so delete them first
+    python code/sim_topography_leakage.py --workers 8 --n 1800 --rebuild-heights \
         --out results/sim_topography_null.csv \
         --out-flanks results/sim_topography_null_flanks.csv
-    #    repeat with --harmonic 0 and with --iaf-shift -0.3
+    #    repeat (without --rebuild-heights) with --harmonic 0 and with --iaf-shift -0.3
     # 4. calibration and identifiability
     python code/sim_calibration.py
     python code/identifiability_power.py
