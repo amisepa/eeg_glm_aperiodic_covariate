@@ -25,7 +25,7 @@ The code covers:
 - simulations with known ground truth: an estimator benchmark, the effect
   of the assumed λ on condition contrasts, and calibration of the λ estimate;
 - a Python pipeline for the Healthy Brain Network resting-state EEG
-  (eyes open vs eyes closed, about 2,000 participants), including
+  (eyes open vs eyes closed, about 2,800 participants), including
   specificity controls, alpha power against age, and a topographic test
   with its null simulation.
 
@@ -42,10 +42,10 @@ The accompanying paper is in preparation; a preprint will be linked here.
   background is subtracted (λ = 0).
 - Censored regression is the least biased of the simple aperiodic
   estimators.
-- In HBN (1,730 participants aged 5-22 after quality control), eyes-closed
+- In HBN (2,396 participants aged 5-22 after quality control), eyes-closed
   alpha power decreases with age when the background is removed additively
-  (λ = 0, -4.3% per year) and increases when it is removed as specparam
-  does (λ = 1, +5.1% per year). The sign changes at λ ≈ 0.47.
+  (λ = 0, -5.0% per year) and increases when it is removed as specparam
+  does (λ = 1, +4.8% per year). The sign changes at λ ≈ 0.52.
 - The eyes-open vs eyes-closed contrast does not identify λ: eye closure
   also changes arousal, ocular and muscle activity, and no test available
   in these data separates those from coupling.
@@ -92,21 +92,22 @@ Processing toolboxes:
 Python 3.10+ with numpy, scipy, pandas, statsmodels, scikit-learn, mne,
 specparam, matplotlib and h5py:
 
-    # 1. PSDs from OpenNeuro (HBN-EEG releases ds005505-ds005515);
+    # 1. PSDs from OpenNeuro (HBN-EEG releases 1-11: ds005505-ds005512 and
+    #    ds005514-ds005516; there is no ds005513);
     #    output directory set by HBN_OUT (default ./hbn_psd)
     python code/hbn_extract_psd.py ds005505 ds005506 --workers 6
     # 2. fits and coupling estimates
     python code/hbn_fit.py
     python code/hbn_lambda.py
     python code/hbn_controls.py
-    python code/hbn_kp.py
+    python code/hbn_kp.py --workers 8
     python code/hbn_age_alpha.py
     python code/hbn_age_alpha_robust.py      # writes the QC flags used below
     python code/hbn_age_alpha_bands.py
     # 3. topographic analyses and their null
     python code/hbn_topography.py --workers 8
     python code/hbn_topography.py --workers 8 --fit-range 4,40 --tag _f4-40
-    #    likewise 5,40 (_f5-40) and 2,30 (_f2-30)
+    #    likewise 2,30 (_f2-30), and 5,40 with --censor 7,16 (_f5-40)
     python code/hbn_topography_flanks.py
     python code/spatial_neff.py
     python code/sim_topography_leakage.py --workers 8 \

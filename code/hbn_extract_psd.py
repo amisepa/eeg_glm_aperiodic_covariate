@@ -1,6 +1,8 @@
 """Download HBN-EEG RestingState recordings and reduce each to Welch PSDs.
 
-For every subject: fetch the .set file from the OpenNeuro S3 mirror, split
+For every subject: fetch the .set file from the OpenNeuro S3 mirror (or,
+where the mirror serves it only by version ID, as in ds005516, from the
+versioned URL given by the OpenNeuro API), split
 the recording into eyes-open and eyes-closed blocks from the instruction
 markers (dropping the first 2 s after each cue), and compute per-channel
 Welch PSDs per condition (4 s Hann, 50% overlap), plus odd/even segment
@@ -14,10 +16,13 @@ Usage:
 """
 import argparse
 import csv
+import functools
 import io
+import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.request
 import warnings
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -25,6 +30,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 
 S3 = "https://s3.amazonaws.com/openneuro.org"
+GRAPHQL = "https://openneuro.org/crn/graphql"
 OUT = os.environ.get("HBN_OUT", "hbn_psd")
 TMP = os.environ.get("HBN_TMP", "hbn_tmp")
 
@@ -50,6 +56,10 @@ def fetch(url, dest, tries=4):
                         break
                     f.write(chunk)
             return True
+        except urllib.error.HTTPError as e:
+            if e.code == 404 or k == tries - 1:      # missing is not transient
+                return False
+            time.sleep(2 ** k)
         except Exception:
             if k == tries - 1:
                 return False
@@ -65,11 +75,57 @@ def read_tsv(url, tries=4):
             with urllib.request.urlopen(url, timeout=120) as r:
                 txt = r.read().decode("utf-8", "replace")
             return list(csv.DictReader(io.StringIO(txt), delimiter="\t"))
+        except urllib.error.HTTPError as e:
+            if e.code == 404 or k == tries - 1:
+                return None
+            time.sleep(2 ** k)
         except Exception:
             if k == tries - 1:
                 return None
             time.sleep(2 ** k)
     return None
+
+
+def graphql(query, tries=4):
+    body = json.dumps({"query": query}).encode()
+    for k in range(tries):
+        try:
+            req = urllib.request.Request(GRAPHQL, data=body,
+                                         headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.load(r)["data"]
+        except Exception:
+            if k == tries - 1:
+                return None
+            time.sleep(2 ** k)
+    return None
+
+
+@functools.lru_cache(maxsize=None)
+def snapshot_tree(ds, tree=""):
+    """{filename: (id, urls)} for one directory of the latest snapshot."""
+    d = graphql(f'{{ dataset(id: "{ds}") {{ latestSnapshot {{ tag }} }} }}')
+    if not d:
+        return {}
+    tag = d["dataset"]["latestSnapshot"]["tag"]
+    arg = f'(tree: "{tree}")' if tree else ""
+    d = graphql(f'{{ snapshot(datasetId: "{ds}", tag: "{tag}") '
+                f'{{ files{arg} {{ id filename urls }} }} }}')
+    if not d:
+        return {}
+    return {f["filename"]: (f["id"], f["urls"]) for f in d["snapshot"]["files"]}
+
+
+def snapshot_url(ds, sub, filename):
+    """Versioned download URL of sub/eeg/filename, or None."""
+    top = snapshot_tree(ds)
+    if sub not in top:
+        return None
+    eeg = snapshot_tree(ds, top[sub][0]).get("eeg")
+    if not eeg:
+        return None
+    f = snapshot_tree(ds, eeg[0]).get(filename)
+    return f[1][0] if f and f[1] else None
 
 
 def participants(ds):
@@ -161,7 +217,9 @@ def process(args):
         return sub, "no-events"
     setf = os.path.join(TMP, f"{sub}_RestingState.set")
     if not fetch(base + "_eeg.set", setf):
-        return sub, "download-failed"
+        url = snapshot_url(ds, sub, f"{sub}_task-RestingState_eeg.set")
+        if not url or not fetch(url, setf):
+            return sub, "download-failed"
 
     try:
         import mne

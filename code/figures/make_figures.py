@@ -541,14 +541,15 @@ def figs1(outdir):
         ax.set_xlabel("Age slope of alpha power (% per year)")
         ax.set_title(title, loc="left", color=INK2)
     axs[0].invert_yaxis()          # shared y axis: invert once
+    Q = pd.read_csv(os.path.join(RES, "hbn_qc_flags.csv"), index_col=0)
     from matplotlib.lines import Line2D
     fig.legend(handles=[
         Line2D([], [], color=C0, marker="o", ls="-", ms=3, label="λ = 0"),
         Line2D([], [], color=C1, marker="o", ls="-", ms=3, label="λ = 1"),
         Line2D([], [], color=INK2, marker="o", ls="none", ms=3,
-               label="quality-controlled (n = 1,730)"),
+               label=f"quality-controlled (n = {int(Q.qc_ok.sum()):,})"),
         Line2D([], [], color=INK2, marker="o", mfc="white", ls="none", ms=3,
-               label="all (n = 2,034)")], loc="lower center", ncol=4,
+               label=f"all (n = {len(Q):,})")], loc="lower center", ncol=4,
                bbox_to_anchor=(0.55, -0.05))
     panel(axs[0], "a"); panel(axs[1], "b")
     fig.tight_layout(w_pad=1.5, rect=(0, 0.06, 1, 1))
@@ -576,7 +577,8 @@ def figs2(outdir):
         ax.text(0.98, pr + 0.02, f"30-45 Hz reference φ = {pr:.2f}", ha="right",
                 va="bottom", fontsize=6, color=INK2)
         ax.text(0.04, 0.05, "intrinsic alpha\ndeclines", color=C0, fontsize=6)
-        ax.text(0.96, 0.9, "rises", color=C1, fontsize=6, ha="right")
+        if not declines.all():         # lambda* >= 1 leaves no region where it rises
+            ax.text(0.96, 0.9, "rises", color=C1, fontsize=6, ha="right")
         ax.set_xlabel("True coupling λ")
         ax.set_title(f"{title} (λ* = {r.lam_star:.2f})", loc="left", color=INK2)
     axs[0].set_ylabel("Share of background age slope\nthat is scalp gain (φ)")

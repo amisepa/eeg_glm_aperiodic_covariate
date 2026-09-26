@@ -6,12 +6,13 @@ within-subject coupling exponent under both.
 
 Writes results/hbn_kp_fits.csv and results/hbn_kp_lambda.csv.
 
-Usage: python hbn_kp.py [--limit N] [--models fixed,knee_plateau]
+Usage: python hbn_kp.py [--limit N] [--models fixed,knee_plateau] [--workers N]
 """
 import argparse
 import glob
 import os
 import sys
+from multiprocessing import Pool
 
 import numpy as np
 import pandas as pd
@@ -113,11 +114,56 @@ def lambda_delta(T, band, model, window, iv=True, nboot=600, rng=None):
     return res
 
 
+def subject_rows(args):
+    """Fit rows for one PSD file; returns (rows, error message or None)."""
+    path, models = args
+    rows = []
+    try:
+        d = np.load(path, allow_pickle=True)
+        f0 = d["freqs"].astype(float)
+        sel = (f0 >= FIT_RANGE[0]) & (f0 <= FIT_RANGE[1])
+        f = f0[sel]
+        ch = [str(c) for c in d["ch_names"]]
+        ix = [ch.index(c) for c in ROI if c in ch]
+        if len(ix) < 3:
+            return rows, None
+        sub = str(d["subject"])
+        iaf = find_iaf(d["ec"][ix][:, sel].astype(float).mean(0), f)
+        if not np.isfinite(iaf):
+            return rows, None
+        bands = {"alpha": (iaf - 2, iaf + 2), "control": CONTROL_BAND}
+        for cond in ("eo", "ec"):
+            for split, key in (("full", cond), ("odd", cond + "_odd"),
+                               ("even", cond + "_even")):
+                P = d[key][ix][:, sel].astype(float).mean(0)
+                P = np.clip(np.nan_to_num(P, nan=1e-12), 1e-12, None)
+                for wname, (kind, spec) in WINDOWS.items():
+                    keep = mask_for(f, kind, spec)
+                    for model in models:
+                        fit = fit_aperiodic(P, f, keep, model)
+                        if fit is None:
+                            continue
+                        for bname, (lo, hi) in bands.items():
+                            b = ap_band_power(fit, f, lo, hi)
+                            t = float(np.mean(P[(f >= lo) & (f <= hi)]))
+                            rows.append(dict(
+                                subject=sub, cond=cond, split=split,
+                                window=wname, model=model, band=bname,
+                                a=t - b, b=b, tot=t, iaf=iaf,
+                                exponent=fit["exponent"],
+                                knee_freq=fit["knee_freq"],
+                                plateau=fit["plateau"], dev=fit["dev"]))
+    except Exception as e:
+        return [], f"{os.path.basename(path)}: {type(e).__name__}: {e}"
+    return rows, None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--psd-dir", default=os.environ.get("HBN_OUT", "hbn_psd"))
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--models", default="fixed,knee_plateau")
+    ap.add_argument("--workers", type=int, default=1)
     a = ap.parse_args()
     models = a.models.split(",")
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -128,48 +174,21 @@ def main():
         files = files[:a.limit]
     print(f"{len(files)} PSD files, models {models}", flush=True)
 
+    jobs = [(p, models) for p in files]
+    if a.workers > 1:
+        pool = Pool(a.workers)
+        results = pool.imap(subject_rows, jobs, chunksize=4)
+    else:
+        results = map(subject_rows, jobs)
     rows = []
-    for k, path in enumerate(files):
-        try:
-            d = np.load(path, allow_pickle=True)
-            f0 = d["freqs"].astype(float)
-            sel = (f0 >= FIT_RANGE[0]) & (f0 <= FIT_RANGE[1])
-            f = f0[sel]
-            ch = [str(c) for c in d["ch_names"]]
-            ix = [ch.index(c) for c in ROI if c in ch]
-            if len(ix) < 3:
-                continue
-            sub = str(d["subject"])
-            iaf = find_iaf(d["ec"][ix][:, sel].astype(float).mean(0), f)
-            if not np.isfinite(iaf):
-                continue
-            bands = {"alpha": (iaf - 2, iaf + 2), "control": CONTROL_BAND}
-            for cond in ("eo", "ec"):
-                for split, key in (("full", cond), ("odd", cond + "_odd"),
-                                   ("even", cond + "_even")):
-                    P = d[key][ix][:, sel].astype(float).mean(0)
-                    P = np.clip(np.nan_to_num(P, nan=1e-12), 1e-12, None)
-                    for wname, (kind, spec) in WINDOWS.items():
-                        keep = mask_for(f, kind, spec)
-                        for model in models:
-                            fit = fit_aperiodic(P, f, keep, model)
-                            if fit is None:
-                                continue
-                            for bname, (lo, hi) in bands.items():
-                                b = ap_band_power(fit, f, lo, hi)
-                                t = float(np.mean(P[(f >= lo) & (f <= hi)]))
-                                rows.append(dict(
-                                    subject=sub, cond=cond, split=split,
-                                    window=wname, model=model, band=bname,
-                                    a=t - b, b=b, tot=t, iaf=iaf,
-                                    exponent=fit["exponent"],
-                                    knee_freq=fit["knee_freq"],
-                                    plateau=fit["plateau"], dev=fit["dev"]))
-        except Exception as e:
-            print(f"  {os.path.basename(path)}: {type(e).__name__}: {e}", flush=True)
-            continue
+    for k, (r, err) in enumerate(results):
+        if err:
+            print(f"  {err}", flush=True)
+        rows += r
         if (k + 1) % 100 == 0:
             print(f"  {k+1}/{len(files)}", flush=True)
+    if a.workers > 1:
+        pool.close()
 
     T = pd.DataFrame(rows)
     T.to_csv(os.path.join(outdir, "hbn_kp_fits.csv"), index=False)
