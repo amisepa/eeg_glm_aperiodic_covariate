@@ -74,15 +74,24 @@ def main():
 
     print("\nspatial r(map d_log P(flank), map d_log P(IAF+/-2)), bootstrap 95% CI;"
           "\nmean d_log P at posterior ROI / temporal sites")
+    rows = []
     for k in bands:
         print(f"\n  flank {k}:")
         for label, sel in groups:
             r, lo, hi = group_r(DF[k][sel], DA[sel], rng)
+            rows.append(dict(flank=k, group=label, n=int(sel.sum()), r=r, lo=lo,
+                             hi=hi,
+                             dlogp_post=float(np.nanmean(DF[k][sel][:, post])),
+                             dlogp_temp=float(np.nanmean(DF[k][sel][:, temp]))))
             print(f"    {label:>10} n={sel.sum():>4}  r = {r:+.3f} [{lo:+.3f}, {hi:+.3f}]"
                   f"   post {np.nanmean(DF[k][sel][:, post]):+.3f}"
                   f"  temp {np.nanmean(DF[k][sel][:, temp]):+.3f}")
     print(f"\n  alpha band d_log P: post {np.nanmean(DA[:, post]):+.3f}, "
           f"temp {np.nanmean(DA[:, temp]):+.3f}")
+    import pandas as pd
+    pd.DataFrame(rows).to_csv(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                           "..", "results", "hbn_topography_flanks.csv"),
+                              index=False)
 
 
 if __name__ == "__main__":

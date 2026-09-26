@@ -26,7 +26,8 @@ The code covers:
   of the assumed λ on condition contrasts, and calibration of the λ estimate;
 - a Python pipeline for the Healthy Brain Network resting-state EEG
   (eyes open vs eyes closed, about 2,000 participants), including
-  specificity controls and a topographic test with its null simulation.
+  specificity controls, alpha power against age, and a topographic test
+  with its null simulation.
 
 The accompanying paper is in preparation; a preprint will be linked here.
 
@@ -34,16 +35,20 @@ The accompanying paper is in preparation; a preprint will be linked here.
 
 - λ cannot be recovered from a single spectrum, only from how the
   background varies across trials, epochs or conditions.
-- Assuming the wrong λ biases condition effects by more than 50%.
+- Assuming the wrong λ distorts condition effects. In a simulated contrast
+  in which the background steepens after the event, the recovered change
+  is 69% too large when the truth is additive but the background is divided
+  out (λ = 1), and 72% too small when the truth is multiplicative but the
+  background is subtracted (λ = 0).
 - Censored regression is the least biased of the simple aperiodic
   estimators.
-- In HBN (n = 2,034, ages 5-22), eyes-closed alpha power decreases with age
-  when the background is removed additively (λ = 0) and increases when it
-  is removed as specparam does (λ = 1).
-- In HBN, the eyes-closed contrast returns a calibrated λ̂ of about 0.85.
-  Eye closure also changes arousal, ocular and muscle activity, and no test
-  available in these data separates those from coupling, so λ is not
-  identified there.
+- In HBN (1,730 participants aged 5-22 after quality control), eyes-closed
+  alpha power decreases with age when the background is removed additively
+  (λ = 0, -4.3% per year) and increases when it is removed as specparam
+  does (λ = 1, +5.1% per year). The sign changes at λ ≈ 0.47.
+- The eyes-open vs eyes-closed contrast does not identify λ: eye closure
+  also changes arousal, ocular and muscle activity, and no test available
+  in these data separates those from coupling.
 
 ## Layout
 
@@ -61,10 +66,16 @@ The accompanying paper is in preparation; a preprint will be linked here.
       hbn_controls.py            window and band specificity controls
       hbn_kp.py, ap_models.py    knee+plateau aperiodic model
       hbn_age_alpha.py           alpha vs age under each separation rule
+      hbn_age_alpha_robust.py    quality control; age slopes across
+                                 estimators; crossover λ*
+      hbn_age_alpha_bands.py     fixed band, specparam and scalp-gain checks
       hbn_topography*.py         topographic test (fitted and fit-free)
+      spatial_neff.py            effective number of channels for map
+                                 correlations
       sim_*.py                   calibration curves and null simulations
+      identifiability_power.py   data needed to identify λ from one spectrum
       joint_fit.py               joint aperiodic + peak fit
-      figures/make_figures.py    Figures 1-5 of the paper
+      figures/make_figures.py    Figures 1-5 and Supplementary Figures 1-2
     results/                     group-level outputs (CSV)
     archive/                     superseded first simulations (see its README)
 
@@ -76,8 +87,10 @@ Processing toolboxes:
     matlab -batch "run('code/test_synth.m')"
     matlab -batch "run('code/sim01_estimator_benchmark.m')"
     matlab -batch "run('code/sim02_ersp_contrast.m')"
+    matlab -batch "scenario='flatten'; run('code/sim02_ersp_contrast.m')"
 
-Python 3.10+ with numpy, scipy, pandas, statsmodels and mne:
+Python 3.10+ with numpy, scipy, pandas, statsmodels, scikit-learn, mne,
+specparam, matplotlib and h5py:
 
     # 1. PSDs from OpenNeuro (HBN-EEG releases ds005505-ds005515);
     #    output directory set by HBN_OUT (default ./hbn_psd)
@@ -88,15 +101,28 @@ Python 3.10+ with numpy, scipy, pandas, statsmodels and mne:
     python code/hbn_controls.py
     python code/hbn_kp.py
     python code/hbn_age_alpha.py
-    # 3. calibration and topographic analyses
-    python code/sim_calibration.py
+    python code/hbn_age_alpha_robust.py      # writes the QC flags used below
+    python code/hbn_age_alpha_bands.py
+    # 3. topographic analyses and their null
     python code/hbn_topography.py --workers 8
-    python code/sim_topography_leakage.py --workers 8         --out results/sim_topography_null.csv
-    # 4. figures
+    python code/hbn_topography.py --workers 8 --fit-range 4,40 --tag _f4-40
+    #    likewise 5,40 (_f5-40) and 2,30 (_f2-30)
+    python code/hbn_topography_flanks.py
+    python code/spatial_neff.py
+    python code/sim_topography_leakage.py --workers 8 \
+        --out results/sim_topography_null.csv \
+        --out-flanks results/sim_topography_null_flanks.csv
+    #    repeat with --harmonic 0 and with --iaf-shift -0.3
+    # 4. calibration and identifiability
+    python code/sim_calibration.py
+    python code/identifiability_power.py
+    # 5. figures
     python code/figures/make_figures.py figures
 
 Per-subject derivatives are not included, because they contain participant
-age and sex. All of them can be regenerated from the public data.
+age and sex. All of them can be regenerated from the public data. The one
+per-subject file included, results/hbn_qc_flags.csv, holds only the
+quality-control flags.
 
 ## Data
 

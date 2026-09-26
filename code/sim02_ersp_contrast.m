@@ -2,9 +2,14 @@
 %
 % Setup: every trial has the SAME intrinsic oscillatory change between a
 % baseline and a post-event window, while the aperiodic background differs
-% across trials AND shifts between windows (offset up, exponent down, as
-% reported by Gyurkovics et al. 2022). We compare five ways of quantifying
-% the oscillatory change:
+% across trials AND shifts between windows. Two background shifts:
+%   scenario = 'steepen'  exponent up by 0.10-0.20, offset unchanged: the
+%                         post-stimulus steepening reported by Gyurkovics
+%                         et al. (2022); lowers the background at alpha
+%   scenario = 'flatten'  offset up by 0.10-0.18, exponent down by
+%                         0.10-0.20; raises the background at alpha
+% Set `scenario` in the workspace before running (default 'steepen').
+% We compare five ways of quantifying the oscillatory change:
 %
 %   raw     dPow    = mean(P1) - mean(P0)              in the band
 %   dB      ddB     = 10*log10(mean(P1)/mean(P0))
@@ -17,13 +22,14 @@
 % not a nuisance -- it IS the coupling exponent lambda of the generative
 % model. beta0 is the background-invariant oscillatory effect.
 %
-% Writes results/sim02.mat
+% Writes results/sim02_<scenario>.mat
 
 here = fileparts(mfilename('fullpath'));
 addpath(fullfile(here, 'lib'));
 outdir = fullfile(fileparts(here), 'results');
 if ~exist(outdir,'dir'), mkdir(outdir); end
 rng(303);
+if ~exist('scenario', 'var'), scenario = 'steepen'; end
 
 srate = 500; dur = 20; nsamp = srate*dur;   % 20 s per window
 fmod = 0.25:0.25:120; frng = [2 45]; band = [8 12];
@@ -37,8 +43,16 @@ for li = 1:numel(lam_set)
     % ---- per-trial ground truth ------------------------------------
     off0 = 0.4 + 1.4*rand(N,1);            % background varies across trials
     exp0 = 1.30 + 0.25*randn(N,1);
-    off1 = off0 + (0.10 + 0.08*rand(N,1)); % broadband shift, trial specific
-    exp1 = exp0 - (0.10 + 0.10*rand(N,1));
+    switch scenario                      % background shift, trial specific
+        case 'steepen'
+            off1 = off0;
+            exp1 = exp0 + (0.10 + 0.10*rand(N,1));
+        case 'flatten'
+            off1 = off0 + (0.10 + 0.08*rand(N,1));
+            exp1 = exp0 - (0.10 + 0.10*rand(N,1));
+        otherwise
+            error('unknown scenario %s', scenario);
+    end
     cf = 10; bw = 1.5;
 
     % The intrinsic oscillator strength must be drawn INDEPENDENTLY of the
@@ -134,5 +148,5 @@ for li = 1:numel(lam_set)
     S(li).dlogc_hat = dlogc_hat; S(li).g1 = g1; S(li).g2 = g2;
     S(li).a0 = a0; S(li).a1 = a1; S(li).b0 = b0; S(li).b1 = b1;
 end
-save(fullfile(outdir,'sim02.mat'), 'S', 'lam_set', '-v7.3');
-fprintf('\nsaved %s\n', fullfile(outdir,'sim02.mat'));
+save(fullfile(outdir, ['sim02_' scenario '.mat']), 'S', 'lam_set', 'scenario', '-v7.3');
+fprintf('\nsaved %s\n', fullfile(outdir, ['sim02_' scenario '.mat']));

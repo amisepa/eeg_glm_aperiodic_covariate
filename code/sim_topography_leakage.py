@@ -155,6 +155,8 @@ def main():
     ap.add_argument("--workers", type=int, default=1)
     ap.add_argument("--out", default="",
                     help="append a summary row per fit range to this CSV")
+    ap.add_argument("--out-flanks", default="",
+                    help="append the fit-free flank statistics to this CSV")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
 
@@ -221,17 +223,26 @@ def main():
     print("\nfit-free flank test: spatial r(map d_log P(band), "
           "map d_log P(IAF+/-2))")
     DA = np.array([x[1] for x in fl])
+    flank_rows = []
     for k in fl[0][0]:
         DF = np.array([x[0][k] for x in fl])
         mF, mA = np.nanmean(DF, 0), np.nanmean(DA, 0)
-        print(f"  {k:>5}: r = {np.corrcoef(mF, mA)[0, 1]:+.3f}, "
+        r = np.corrcoef(mF, mA)[0, 1]
+        print(f"  {k:>5}: r = {r:+.3f}, "
               f"mean d_log P = {np.nanmean(DF):+.4f} (n = {len(fl)})")
+        flank_rows.append(dict(flank=k, harmonic=a.harmonic, iaf_shift=a.iaf_shift,
+                               n=len(fl), r_flank_alpha=r,
+                               mean_dlogp=float(np.nanmean(DF))))
 
+    import pandas as pd
     if a.out:
-        import pandas as pd
         df = pd.DataFrame(summary)
         df.to_csv(a.out, mode="a", index=False,
                   header=not os.path.exists(a.out))
+    if a.out_flanks:
+        df = pd.DataFrame(flank_rows)
+        df.to_csv(a.out_flanks, mode="a", index=False,
+                  header=not os.path.exists(a.out_flanks))
 
 
 if __name__ == "__main__":
