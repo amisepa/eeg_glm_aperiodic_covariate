@@ -9,6 +9,10 @@ results/hbn_kp_fits.csv
 results/hbn_ctrl_band.csv
 results/hbn_ctrl_window.csv
 results/hbn_topography*.npz
+results/aging_bandpower.csv
+results/vitaldb_cases.csv
+results/chennu_spectra.csv
+results/brake_bins.csv
 # Python bytecode
 __pycache__/
 *.pyc

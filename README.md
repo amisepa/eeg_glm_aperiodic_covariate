@@ -27,7 +27,10 @@ The code covers:
 - a Python pipeline for the Healthy Brain Network resting-state EEG
   (eyes open vs eyes closed, about 2,800 participants), including
   specificity controls, alpha power against age, and a topographic test
-  with its null simulation.
+  with its null simulation;
+- re-analyses of published claims in five more open datasets (adult aging,
+  anaesthesia, propofol sedation and induction), and a coupling estimator
+  that does not need positive periodic power, tested in three designs.
 
 The accompanying paper is in preparation; a preprint will be linked here.
 
@@ -46,9 +49,16 @@ The accompanying paper is in preparation; a preprint will be linked here.
   alpha power decreases with age when the background is removed additively
   (λ = 0, -5.0% per year) and increases when it is removed as specparam
   does (λ = 1, +4.8% per year). The sign changes at λ ≈ 0.52.
-- The eyes-open vs eyes-closed contrast does not identify λ: eye closure
-  also changes arousal, ocular and muscle activity, and no test available
-  in these data separates those from coupling.
+- Of 13 published claims about periodic power re-tested in six open
+  datasets (more than 7,000 participants), four depend on λ, all where the
+  background itself changes (child development, propofol induction); adult
+  aging (Dortmund, LEMON) and the age decline of alpha under anaesthesia
+  (VitalDB) hold under both rules.
+- No open design identifies λ. Estimates move with the specification
+  (eyes closed vs open: 0.29-0.80), with eye state and over a session
+  (within-recording fluctuations: 1.3-1.9 eyes closed, -0.1-0.7 eyes open).
+  The usual regression of log periodic on log background power, restricted
+  to positive periodic power, is biased towards 1; lambda_gmm.py is not.
 
 ## Layout
 
@@ -75,7 +85,21 @@ The accompanying paper is in preparation; a preprint will be linked here.
       sim_*.py                   calibration curves and null simulations
       identifiability_power.py   data needed to identify λ from one spectrum
       joint_fit.py               joint aperiodic + peak fit
-      figures/make_figures.py    Figures 1-5 and Supplementary Figures 1-2
+      lambda_curve.py            effect as a function of λ, crossover λ*
+      lambda_gmm.py              log-free estimation of λ (two conditions,
+                                 or epochs within a recording)
+      sim_lambda_gmm.py          simulations of the estimators
+      psd_utils.py               shared preprocessing and Welch spectra
+      dortmund_extract_psd.py, lemon_extract_psd.py, vitaldb_extract.py,
+      fetch_open_data.py         download and reduce the other datasets
+      aging_lambda.py            Dortmund and LEMON: age and alpha under λ
+      vitaldb_lambda.py          anaesthesia: age and frontal alpha under λ
+      chennu_analysis.py         graded propofol sedation
+      brake_analysis.py          propofol induction spectrograms
+      ds003690_epochs.py, ds003690_lambda.py, dortmund_levels.py
+                                 λ from fluctuations within a recording
+      breadth_summary.py, identification_summary.py   summary tables
+      figures/make_figures.py    Figures 1-6 and Supplementary Figures 1-2
     results/                     group-level outputs (CSV)
     archive/                     superseded first simulations (see its README)
 
@@ -119,17 +143,43 @@ specparam, matplotlib and h5py:
     # 4. calibration and identifiability
     python code/sim_calibration.py
     python code/identifiability_power.py
-    # 5. figures
+    python code/sim_lambda_gmm.py --out results/sim_lambda_gmm_common.csv
+    # 5. other datasets (raw files are deleted after reduction; set
+    #    DORTMUND_OUT, LEMON_OUT, VITALDB_OUT, VITALDB_META, EEG_DATA)
+    python code/dortmund_extract_psd.py --workers 6
+    python code/lemon_extract_psd.py --workers 4
+    python code/vitaldb_extract.py --workers 6      # needs vitaldb (pip)
+    python code/fetch_open_data.py                  # Chennu, Brake, ds003690
+    python code/aging_lambda.py
+    python code/vitaldb_lambda.py
+    python code/chennu_analysis.py
+    python code/brake_analysis.py
+    python code/ds003690_epochs.py && python code/ds003690_lambda.py
+    python code/dortmund_levels.py --censor-hi 16 && python code/dortmund_levels.py --censor-hi 26
+    python code/breadth_summary.py && python code/identification_summary.py
+    # 6. figures
     python code/figures/make_figures.py figures
 
-Per-subject derivatives are not included, because they contain participant
-age and sex. All of them can be regenerated from the public data. The one
-per-subject file included, results/hbn_qc_flags.csv, holds only the
-quality-control flags.
+Per-subject and per-case derivatives are not included, because they contain
+participant age and sex or clinical data. All of them can be regenerated from
+the public data. The one per-subject file included, results/hbn_qc_flags.csv,
+holds only the quality-control flags.
 
 ## Data
 
-Healthy Brain Network EEG (Shirazi et al., 2024), available on OpenNeuro.
+All open:
+
+- Healthy Brain Network EEG (Shirazi et al., 2024), OpenNeuro ds005505-ds005512
+  and ds005514-ds005516.
+- Dortmund Vital Study (Getzmann et al., 2024), OpenNeuro ds005385.
+- MPI-Leipzig LEMON (Babayan et al., 2019), INDI server.
+- VitalDB (Lee et al., 2022), PhysioNet.
+- Propofol sedation (Chennu et al., 2016), University of Cambridge Apollo,
+  doi:10.17863/CAM.68959.
+- Propofol induction spectrograms (Brake et al., 2024), figshare,
+  doi:10.6084/m9.figshare.24777990.
+- Young and older adults with pupil and EOG (Ribeiro & Castelo-Branco, 2019),
+  OpenNeuro ds003690.
 
 ## Context
 

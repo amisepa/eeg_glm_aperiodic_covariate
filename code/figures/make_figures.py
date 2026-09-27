@@ -7,10 +7,12 @@ Figure 4  alpha power against age under each separation rule (HBN)
 Figure 5  estimating lambda from eyes open vs eyes closed (HBN)
 Suppl. 1  robustness of the age slopes across estimators (--only 6)
 Suppl. 2  gain tipping point (--only 7)
+Figure 6  published claims re-tested, and every estimate of lambda (--only 8;
+          reads results/breadth_summary.csv and identification_summary.csv)
 
 Inputs: results/sim01.mat, results/sim02_steepen.mat, results/sim_topography_null_flanks.csv,
 results/hbn_topography_flanks.csv,
-results/hbn_kp_lambda.csv, results/sim_topography_null.csv,
+results/hbn_lambda_gmm.csv, results/sim_topography_null.csv,
 results/hbn_age_alpha_robust.csv, results/hbn_age_alpha_crossover.csv, and the local
 per-subject files results/hbn_kp_fits.csv and results/hbn_topography*.npz
 (regenerable with the scripts in code/). Ages come from the PSD files in
@@ -446,21 +448,22 @@ def fig4(outdir):
 def fig5(outdir):
     fig, axs = plt.subplots(1, 3, figsize=(W2, 2.3))
 
-    # (a) specification curve
+    # (a) specification curve, log-free estimator (identification_summary.py)
     ax = axs[0]
-    k = pd.read_csv(os.path.join(RES, "hbn_kp_lambda.csv"))
-    k = k[k.band == "alpha"].reset_index(drop=True)
+    k = pd.read_csv(os.path.join(RES, "hbn_lambda_gmm.csv"))
     k["label"] = [f"{'knee+plateau' if m == 'knee_plateau' else 'power law'}\n"
                   f"{'censor 6-16 Hz' if w.startswith('censor') else 'flanks'}"
                   for m, w in zip(k.model, k.window)]
-    k = k.sort_values("lam_iv").reset_index(drop=True)
+    k = k.sort_values("lam").reset_index(drop=True)
     y = np.arange(len(k))
-    ax.errorbar(k.lam_iv, y, xerr=[k.lam_iv - k.ci_lo, k.ci_hi - k.lam_iv],
+    ax.errorbar(k.lam, y, xerr=[k.lam - k.lo, k.hi - k.lam],
                 fmt="o", color=INK, ms=4, lw=1, capsize=0)
+    ax.axvline(0, color=C0, lw=0.8, ls="--")
+    ax.axvline(1, color=C1, lw=0.8, ls="--")
     ax.set_yticks(y)
     ax.set_yticklabels(k.label)
-    ax.set_xlabel("λ̂, within subject, split-half IV")
-    ax.set_xlim(0.3, 1.05)
+    ax.set_xlabel("λ̂, eyes closed vs open")
+    ax.set_xlim(-0.1, 1.1)
     ax.set_title("Specification moves the estimate", loc="left", color=INK2)
     panel(ax, "a")
 
@@ -592,15 +595,97 @@ def figs2(outdir):
     save(fig, outdir, "figS2_gain_tipping")
 
 
+# ---- Figure 6 -----------------------------------------------------------
+def fig6(outdir):
+    """Published claims re-tested under both rules, and every attempt to
+    estimate lambda."""
+    S = pd.read_csv(os.path.join(RES, "breadth_summary.csv"))
+    I = pd.read_csv(os.path.join(RES, "identification_summary.csv"))
+    fig, axs = plt.subplots(1, 2, figsize=(W2, 4.3), gridspec_kw=dict(width_ratios=[1.1, 1]))
+
+    # (a) crossover lambda* per claim
+    ax = axs[0]
+    lo_x, hi_x = -1.0, 4.0
+    ax.axvspan(0, 1, color=CH, alpha=0.12, lw=0)
+    ax.text(0.5, len(S) - 1.0, "assumption\ndecides", ha="center", va="center", fontsize=5.5,
+            color=INK2)
+    col = {"reverses": C1, "depends on lambda": INK, "holds under both": GREY,
+           "null under both": GREY}
+    for i, r in enumerate(S.itertuples()):
+        y = i
+        c = col.get(r.verdict, GREY)
+        x0, x1 = np.clip([r.hdi_lo, r.hdi_hi], lo_x, hi_x)
+        ax.plot([x0, x1], [y, y], color=c, lw=1)
+        x = np.clip(r.lam_star, lo_x, hi_x)
+        mk = ">" if r.lam_star > hi_x else ("<" if r.lam_star < lo_x else "o")
+        ax.plot(x, y, mk, color=c, ms=4 if mk == "o" else 5,
+                mfc=c if r.verdict in ("reverses", "depends on lambda") else "white")
+    ax.set_yticks(range(len(S)))
+    ax.set_yticklabels([f"{r.claim}\n{r.dataset}, n = {r.n:,}" for r in S.itertuples()],
+                       fontsize=5.5)
+    ax.set_xlim(lo_x - 0.1, hi_x + 0.1)
+    ax.set_ylim(len(S) - 0.4, -0.6)
+    ax.set_xlabel("Crossover λ* (assumed λ at which the effect changes sign)")
+    from matplotlib.lines import Line2D
+    fig.legend(handles=[Line2D([], [], color=C1, marker="o", ls="-", ms=4, label="reverses"),
+                        Line2D([], [], color=INK, marker="o", ls="-", ms=4, label="depends on λ"),
+                        Line2D([], [], color=GREY, marker="o", mfc="white", ls="-", ms=4,
+                               label="holds under both, or null")],
+               loc="lower left", bbox_to_anchor=(0.02, -0.01), ncol=3, fontsize=6)
+    ax.set_title("Published claims re-tested", loc="left", color=INK2)
+    panel(ax, "a")
+
+    # (b) lambda-hat by design, grouped, with a header row per design
+    ax = axs[1]
+    ax.axvline(0, color=C0, lw=0.8, ls="--")
+    ax.axvline(1, color=C1, lw=0.8, ls="--")
+    order = ["within session: epoch fluctuations, eyes open",
+             "within session: segment fluctuations, eyes closed",
+             "within session: segment fluctuations, eyes open",
+             "between doses: propofol baseline vs moderate"]
+    headers = {order[0]: "ds003690, eyes open (within session)",
+               order[1]: "Dortmund, eyes closed (within session)",
+               order[2]: "Dortmund, eyes open (within session)",
+               order[3]: "Chennu, propofol baseline vs moderate (between doses)"}
+    y, ticks, labels = 0, [], []
+    for g in order:
+        G_ = I[I.design == g]
+        if G_.empty:
+            continue
+        ax.text(-0.75, y, headers[g], fontsize=6, color=INK, fontweight="bold", va="center",
+                bbox=dict(fc="white", ec="none", pad=0.4))
+        y += 1
+        for r in G_.itertuples():
+            spec = (r.spec.replace("before 2-h tasks", "before tasks")
+                    .replace("after 2-h tasks", "after tasks")
+                    .replace("covariates: ", "").replace("censor ", "")
+                    .replace("flanks 3-6, 26-36", "flanks"))
+            ax.plot([r.lo, r.hi], [y, y], color=INK, lw=1)
+            ax.plot(r.lam, y, "o", color=INK, ms=3.5)
+            ticks.append(y)
+            labels.append(spec)
+            y += 1
+        y += 0.4
+    ax.set_yticks(ticks)
+    ax.set_yticklabels(labels, fontsize=5.5)
+    ax.set_ylim(y - 0.6, -0.8)
+    ax.set_xlim(-0.8, 2.2)
+    ax.set_xlabel("Estimated coupling (95% interval; 0 additive, 1 multiplicative)")
+    ax.set_title("Estimating λ from the data", loc="left", color=INK2)
+    panel(ax, "b")
+    fig.tight_layout(w_pad=1.0, rect=(0, 0.04, 1, 1))
+    save(fig, outdir, "fig6_breadth_identification")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("outdir")
-    ap.add_argument("--only", default="1,2,3,4,5,6,7")
+    ap.add_argument("--only", default="1,2,3,4,5,6,7,8")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     todo = {int(x) for x in a.only.split(",")}
     for k, fn in ((1, fig1), (2, fig2), (3, fig3), (4, fig4), (5, fig5),
-                  (6, figs1), (7, figs2)):
+                  (6, figs1), (7, figs2), (8, fig6)):
         if k in todo:
             fn(a.outdir)
 

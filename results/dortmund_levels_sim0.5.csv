@@ -1,0 +1,2 @@
+lam,lo,hi,fail,n_units,n_segments,reliability,gamma,cond,covariates,sample
+0.6960115545560196,0.6471184274965199,0.7742972930729098,0.0,599,40992,0.18801835753235996,[],ec_pre,False,simulated 0.5

@@ -1,0 +1,19 @@
+design,dataset,spec,n,lam,lo,hi,calibration
+between conditions: eyes closed vs open,"HBN, 5-22 y","power law, censor 6-16",2396,0.7696346718374834,0.6394963900832259,0.8985049965552822,
+between conditions: eyes closed vs open,"HBN, 5-22 y","power law, flanks 3-6, 26-36",2396,0.2876106838229639,0.0715319070959431,0.4775394083545791,
+between conditions: eyes closed vs open,"HBN, 5-22 y","knee + plateau, censor 6-16",2396,0.8024060645266138,0.6425870507369684,0.9725375367945196,
+between conditions: eyes closed vs open,"HBN, 5-22 y","knee + plateau, flanks 3-6, 26-36",2396,0.3710477614598746,0.1859164615241441,0.5692854540738375,
+"within session: epoch fluctuations, eyes open","ds003690, 20-75 y","censor 6-16, covariates: none",48,0.6830492293960344,0.2519436995261542,1.4168920470855284,"0 -> -0.06, 0.5 -> 0.43, 1 -> 0.90"
+"within session: epoch fluctuations, eyes open","ds003690, 20-75 y","censor 6-16, covariates: pupil",48,0.6930532596660768,0.2268000221235171,1.4138491296923572,"0 -> -0.06, 0.5 -> 0.43, 1 -> 0.90"
+"within session: segment fluctuations, eyes closed","Dortmund, 20-70 y","censor 6-16, before 2-h tasks",599,1.8665346357169197,1.7626939953295988,1.963987684307896,"0 -> 0.13, 0.5 -> 0.70, 1 -> 1.23 (censor 6-16)"
+"within session: segment fluctuations, eyes closed","Dortmund, 20-70 y","censor 6-16, after 2-h tasks",606,1.7354791969544363,1.6334819982210296,1.8312204889488644,"0 -> 0.13, 0.5 -> 0.70, 1 -> 1.23 (censor 6-16)"
+"within session: segment fluctuations, eyes open","Dortmund, 20-70 y","censor 6-16, before 2-h tasks",533,0.4488090587295,0.2864027297101492,0.7317022400168709,"0 -> 0.13, 0.5 -> 0.70, 1 -> 1.23 (censor 6-16)"
+"within session: segment fluctuations, eyes open","Dortmund, 20-70 y","censor 6-16, after 2-h tasks",545,0.7363053516246676,0.5528458529763618,0.9669006319478332,"0 -> 0.13, 0.5 -> 0.70, 1 -> 1.23 (censor 6-16)"
+"within session: segment fluctuations, eyes closed","Dortmund, 20-70 y","censor 6-26, before 2-h tasks",601,1.6197401784639347,1.5123487600916798,1.7465425233159706,"0 -> 0.13, 0.5 -> 0.70, 1 -> 1.23 (censor 6-16)"
+"within session: segment fluctuations, eyes closed","Dortmund, 20-70 y","censor 6-26, after 2-h tasks",606,1.3404493307262175,1.2440456733024143,1.4432136134956446,"0 -> 0.13, 0.5 -> 0.70, 1 -> 1.23 (censor 6-16)"
+"within session: segment fluctuations, eyes open","Dortmund, 20-70 y","censor 6-26, before 2-h tasks",544,-0.0860635573571894,-0.3059666038646643,0.0638187284060012,"0 -> 0.13, 0.5 -> 0.70, 1 -> 1.23 (censor 6-16)"
+"within session: segment fluctuations, eyes open","Dortmund, 20-70 y","censor 6-26, after 2-h tasks",543,0.255127067210185,0.0903584980938078,0.4482855919546458,"0 -> 0.13, 0.5 -> 0.70, 1 -> 1.23 (censor 6-16)"
+between doses: propofol baseline vs moderate,Chennu 2016,"posterior, censor 6-16",20,0.98261715046026,-0.1397104374228297,1.479856525188741,
+between doses: propofol baseline vs moderate,Chennu 2016,"frontal, censor 6-16",20,0.3284817793713123,-0.4097281941819875,1.416768523093246,
+between doses: propofol baseline vs moderate,Chennu 2016,"posterior, censor 6-25",20,1.2144475435830413,0.125866740809706,1.472097410653396,
+between doses: propofol baseline vs moderate,Chennu 2016,"frontal, censor 6-25",20,0.8800652722633396,-0.2797340253774225,1.3995709708539208,
