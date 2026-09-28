@@ -11,9 +11,16 @@ Routes:
                     between the periodic and aperiodic estimates cancels
 
 Also runs the 2-df (p, q) test of log a = c + p*offset + q*exponent against
-additive (0, 0) and multiplicative (1, -log10 f_alpha) coupling.
+additive (0, 0) and multiplicative (1, -log10 f_alpha) coupling, and against
+a common gain that scales both components (1, 0).
 
-Usage: python hbn_lambda.py [--roi results/hbn_roi.csv]
+Uses only participants passing quality control (results/hbn_qc_flags.csv,
+qc_ok) unless --all is given.
+
+Writes results/hbn_lambda.csv, hbn_decompose.csv, hbn_pq.csv and
+hbn_pq_within.csv.
+
+Usage: python hbn_lambda.py [--roi results/hbn_roi.csv] [--all]
 """
 import argparse
 import os
@@ -94,9 +101,11 @@ def pq_test(a, offset, exponent, f_alpha):
 
     Purely multiplicative coupling (lambda = 1) predicts (p, q) =
     (1, -log10 f_alpha); purely additive coupling (lambda = 0) predicts
-    (0, 0). Both are 2-degree-of-freedom Wald tests. If p and q are mutually
-    inconsistent, no single lambda describes the data -- which is itself the
-    prediction of a mixed multiplicative/additive generative model.
+    (0, 0); a gain that scales rhythm and background alike changes only the
+    offset and predicts (1, 0). All are 2-degree-of-freedom Wald tests. If p
+    and q are mutually inconsistent, no single lambda describes the data --
+    which is itself the prediction of a mixed multiplicative/additive
+    generative model.
 
     offset and exponent are strongly collinear (the offset is pivoted at
     1 Hz, far outside the fit range), so the individual coefficients are
@@ -112,6 +121,7 @@ def pq_test(a, offset, exponent, f_alpha):
     Rm = np.array([[0., 1., 0.], [0., 0., 1.]])
     add_t = r.f_test(Rm)                                 # H0: p = 0, q = 0
     mul_t = r.f_test((Rm, np.array([1.0, -lfa])))        # H0: p = 1, q = -log10 f_a
+    gain_t = r.f_test((Rm, np.array([1.0, 0.0])))        # H0: p = 1, q = 0
     return dict(p=float(r.params[1]), p_se=float(r.bse[1]),
                 q=float(r.params[2]), q_se=float(r.bse[2]),
                 lam_from_p=float(r.params[1]),
@@ -119,6 +129,7 @@ def pq_test(a, offset, exponent, f_alpha):
                 F_additive=float(add_t.fvalue), p_additive=float(add_t.pvalue),
                 F_multiplicative=float(mul_t.fvalue),
                 p_multiplicative=float(mul_t.pvalue),
+                F_gain=float(gain_t.fvalue), p_gain=float(gain_t.pvalue),
                 log10_falpha=lfa, n=int(ok.sum()), r2=float(r.rsquared))
 
 
@@ -167,6 +178,7 @@ def pq_within(R, est, covar=None, split_a="full", split_b="full"):
     Rm = np.zeros((2, k)); Rm[0, 1] = 1.0; Rm[1, 2] = 1.0
     add_t = r.f_test(Rm)
     mul_t = r.f_test((Rm, np.array([1.0, -lfa])))
+    gain_t = r.f_test((Rm, np.array([1.0, 0.0])))
     return dict(estimator=est, split_a=split_a, split_b=split_b,
                 p=float(r.params[1]), p_se=float(r.bse[1]),
                 q=float(r.params[2]), q_se=float(r.bse[2]),
@@ -175,7 +187,9 @@ def pq_within(R, est, covar=None, split_a="full", split_b="full"):
                 F_additive=float(add_t.fvalue), p_additive=float(add_t.pvalue),
                 F_multiplicative=float(mul_t.fvalue),
                 p_multiplicative=float(mul_t.pvalue),
-                log10_falpha=lfa, n=int(ok.sum()), r2=float(r.rsquared))
+                F_gain=float(gain_t.fvalue), p_gain=float(gain_t.pvalue),
+                log10_falpha=lfa, n=int(ok.sum()), n_total=int(ok.size),
+                r2=float(r.rsquared))
 
 
 def iv_slope(a1, b1, a2, b2):
@@ -195,13 +209,22 @@ def main():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ap.add_argument("--roi", default=os.path.join(here, "results", "hbn_roi.csv"))
     ap.add_argument("--chan", default=os.path.join(here, "results", "hbn_chan.csv"))
+    ap.add_argument("--qc", default=os.path.join(here, "results", "hbn_qc_flags.csv"))
+    ap.add_argument("--all", action="store_true",
+                    help="use every participant, not only those passing QC")
     a = ap.parse_args()
 
     R = pd.read_csv(a.roi)
+    keep = None
+    if not a.all:
+        Q = pd.read_csv(a.qc, index_col=0)
+        keep = set(Q.index[Q.qc_ok])
+        R = R[R.subject.isin(keep)]
     ests = [e for e in ["censored", "local_flank", "full_reg", "theilsen",
                         "specparam1", "specparam3"] if e in set(R.estimator)]
     nsub = R.subject.nunique()
-    print(f"\n{nsub} subjects, {len(R)} ROI rows, estimators: {ests}")
+    print(f"\n{nsub} subjects ({'all' if a.all else 'passing QC'}), {len(R)} ROI rows, "
+          f"estimators: {ests}")
     if "age" in R:
         ag = R.drop_duplicates("subject").age
         print(f"age: median {ag.median():.1f}, range {ag.min():.1f}-{ag.max():.1f}")
@@ -255,7 +278,8 @@ def main():
     # ---------- 1c. anchor-free (p, q) test ----------
     print("\n=== anchor-free coupling test: log10 a ~ offset + exponent ===")
     print(f"{'estimator':14s} {'cond':4s} {'p':>14s} {'q':>14s} "
-          f"{'lam|p':>7s} {'lam|q':>7s} {'F_add (p)':>18s} {'F_mult (p)':>18s} {'n':>5s}")
+          f"{'lam|p':>7s} {'lam|q':>7s} {'F_add (p)':>18s} {'F_mult (p)':>18s} "
+          f"{'F_gain (p)':>18s} {'n':>5s}")
     prows = []
     for est in ests:
         for cond in ("ec", "eo"):
@@ -268,7 +292,8 @@ def main():
                   f"{d['q']:7.3f} ({d['q_se']:.3f}) {d['lam_from_p']:7.3f} "
                   f"{d['lam_from_q']:7.3f} {d['F_additive']:10.2f} "
                   f"({d['p_additive']:.1e}) {d['F_multiplicative']:8.2f} "
-                  f"({d['p_multiplicative']:.1e}) {d['n']:5d}")
+                  f"({d['p_multiplicative']:.1e}) {d['F_gain']:8.2f} "
+                  f"({d['p_gain']:.1e}) {d['n']:5d}")
             prows.append(dict(estimator=est, cond=cond, **d))
     pd.DataFrame(prows).to_csv(os.path.join(os.path.dirname(a.roi),
                                             "hbn_pq.csv"), index=False)
@@ -276,7 +301,8 @@ def main():
     # ---------- 1d. within-subject (eyes closed - eyes open) test ----------
     print("\n=== within-subject coupling test (EC - EO; gain cancels) ===")
     print(f"{'estimator':14s} {'a<-':>5s} {'ap<-':>5s} {'p':>14s} {'q':>14s} "
-          f"{'lam|p':>7s} {'lam|q':>7s} {'F_add (p)':>18s} {'F_mult (p)':>18s} {'n':>5s}")
+          f"{'lam|p':>7s} {'lam|q':>7s} {'F_add (p)':>18s} {'F_mult (p)':>18s} "
+          f"{'F_gain (p)':>18s} {'n':>5s}")
     wrows = []
     for est in ests:
         for sa, sb in (("full", "full"), ("odd", "even"), ("even", "odd")):
@@ -287,7 +313,8 @@ def main():
                   f"{d['q']:7.3f} ({d['q_se']:.3f}) {d['lam_from_p']:7.3f} "
                   f"{d['lam_from_q']:7.3f} {d['F_additive']:10.2f} "
                   f"({d['p_additive']:.1e}) {d['F_multiplicative']:8.2f} "
-                  f"({d['p_multiplicative']:.1e}) {d['n']:5d}")
+                  f"({d['p_multiplicative']:.1e}) {d['F_gain']:8.2f} "
+                  f"({d['p_gain']:.1e}) {d['n']:5d}")
             wrows.append(d)
     pd.DataFrame(wrows).to_csv(os.path.join(os.path.dirname(a.roi),
                                             "hbn_pq_within.csv"), index=False)
@@ -308,6 +335,8 @@ def main():
     # ---------- 3. within-subject lambda across channels ----------
     if os.path.exists(a.chan):
         C = pd.read_csv(a.chan)
+        if keep is not None:
+            C = C[C.subject.isin(keep)]
         print("\n=== within-subject coupling exponent, across 129 channels ===")
         for cond in ("ec", "eo"):
             lam = []

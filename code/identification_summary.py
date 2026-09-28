@@ -10,6 +10,10 @@
   after the task battery (dortmund_levels.py), two background-fit windows,
   with calibration.
 - Chennu graded propofol, baseline vs moderate (chennu_lambda_gmm.csv).
+- Test-retest: SRM (later session) and Dortmund (5 years), log-free
+  estimator with sessions as conditions (srm_lambda.py).
+- Intracranial within-session fluctuations (ieeg_lambda.py), with its
+  data-matched calibration.
 
 Writes results/identification_summary.csv.
 
@@ -78,6 +82,32 @@ def main():
         out.append(dict(design="between doses: propofol baseline vs moderate",
                         dataset="Chennu 2016", spec=f"{r.roi}, {r.window}", n=r.n, lam=r.lam,
                         lo=r.lo, hi=r.hi, calibration=""))
+    p = os.path.join(RES, "srm_lambda.csv")
+    if os.path.exists(p):
+        s = pd.read_csv(p)
+        s = s[s.analysis.str.contains("log-free") & (s.model == "fixed")]
+        for r in s.itertuples():
+            srm = r.analysis.startswith("srm")
+            out.append(dict(design="between sessions: test-retest",
+                            dataset="SRM, 17-71 y" if srm else "Dortmund, 20-70 y",
+                            spec=("SRM, eyes closed, later session" if srm else
+                                  f"Dortmund, {'eyes closed' if 'ec_pre' in r.analysis else 'eyes open'}"
+                                  ", 5 years"),
+                            n=r.n, lam=r.lam_gmm, lo=r.gmm_lo, hi=r.gmm_hi, calibration=""))
+    p = os.path.join(RES, "ieeg_lambda.csv")
+    if os.path.exists(p):
+        cal = []
+        for L in ("0.0", "0.5", "1.0"):
+            q = os.path.join(RES, f"ieeg_lambda_sim{L}.csv")
+            if os.path.exists(q):
+                c = pd.read_csv(q)
+                c = c[c.subset == "all"]
+                cal.append(f"{float(L):g} -> {c.lam.iloc[0]:.2f}")
+        for r in pd.read_csv(p).query("covariates in ['none', 'EOG + EMG']").itertuples():
+            out.append(dict(design="within session: epoch fluctuations, intracranial",
+                            dataset="ds003688 iEEG", n=r.n_channels, lam=r.lam, lo=r.lo, hi=r.hi,
+                            spec=f"{r.subset} channels, covariates: {r.covariates}",
+                            calibration=", ".join(cal)))
     O = pd.DataFrame(out)
     O.to_csv(os.path.join(RES, "identification_summary.csv"), index=False)
     pd.set_option("display.width", 220)

@@ -13,6 +13,8 @@ results/aging_bandpower.csv
 results/vitaldb_cases.csv
 results/chennu_spectra.csv
 results/brake_bins.csv
+results/srm_bandpower.csv
+results/hbn_scalp_distance.csv
 # Python bytecode
 __pycache__/
 *.pyc

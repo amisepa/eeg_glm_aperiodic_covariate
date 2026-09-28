@@ -9,6 +9,8 @@ Suppl. 1  robustness of the age slopes across estimators (--only 6)
 Suppl. 2  gain tipping point (--only 7)
 Figure 6  published claims re-tested, and every estimate of lambda (--only 8;
           reads results/breadth_summary.csv and identification_summary.csv)
+Suppl. 3  what sets lambda in a synaptic model (--only 9; reads
+          results/sim_mechanisms.csv)
 
 Inputs: results/sim01.mat, results/sim02_steepen.mat, results/sim_topography_null_flanks.csv,
 results/hbn_topography_flanks.csv,
@@ -620,6 +622,10 @@ def fig6(outdir):
         mk = ">" if r.lam_star > hi_x else ("<" if r.lam_star < lo_x else "o")
         ax.plot(x, y, mk, color=c, ms=4 if mk == "o" else 5,
                 mfc=c if r.verdict in ("reverses", "depends on lambda") else "white")
+        if not getattr(r, "lam_star_bounded", True):
+            # effect on ln b indistinguishable from 0: no finite crossover interval
+            ax.text(x + (-0.12 if mk == ">" else 0.12), y, "unbounded", fontsize=5,
+                    color=INK2, va="center", ha="right" if mk == ">" else "left")
     ax.set_yticks(range(len(S)))
     ax.set_yticklabels([f"{r.claim}\n{r.dataset}, n = {r.n:,}" for r in S.itertuples()],
                        fontsize=5.5)
@@ -642,11 +648,15 @@ def fig6(outdir):
     order = ["within session: epoch fluctuations, eyes open",
              "within session: segment fluctuations, eyes closed",
              "within session: segment fluctuations, eyes open",
+             "within session: epoch fluctuations, intracranial",
+             "between sessions: test-retest",
              "between doses: propofol baseline vs moderate"]
     headers = {order[0]: "ds003690, eyes open (within session)",
                order[1]: "Dortmund, eyes closed (within session)",
                order[2]: "Dortmund, eyes open (within session)",
-               order[3]: "Chennu, propofol baseline vs moderate (between doses)"}
+               order[3]: "Intracranial rest, ds003688 (within session)",
+               order[4]: "Test-retest (between sessions)",
+               order[5]: "Chennu, propofol baseline vs moderate (between doses)"}
     y, ticks, labels = 0, [], []
     for g in order:
         G_ = I[I.design == g]
@@ -677,15 +687,95 @@ def fig6(outdir):
     save(fig, outdir, "fig6_breadth_identification")
 
 
+# ---- Supplementary Figure 3 ------------------------------------------------
+MECH_LABELS = {
+    "gain": "Gain (skull, electrodes)",
+    "synaptic_gain": "Synaptic gain (all currents)",
+    "tau_i": "Slower GABA$_A$ decay, rhythm in I",
+    "gi_rhythm_i": "Stronger inhibition, rhythm in I",
+    "gi_rhythm_e": "Stronger inhibition, rhythm in E",
+    "drive_relative": "More drive, rhythm a fixed fraction",
+    "drive_absolute": "More drive, rhythm of fixed size",
+    "separate_common_gain": "Separate generator, common gain",
+    "separate_background_drive": "Separate generator, more background drive",
+}
+
+
+def figs3(outdir):
+    """What sets lambda in a synaptic model of the EEG (results/sim_mechanisms.csv)."""
+    S = pd.read_csv(os.path.join(RES, "sim_mechanisms.csv")).set_index("scenario")
+    fig, axs = plt.subplots(1, 2, figsize=(W2, 2.9), gridspec_kw=dict(width_ratios=[1.35, 1]))
+    from matplotlib.lines import Line2D
+
+    ax = axs[0]
+    for x, c in ((0, C0), (1, C1)):
+        ax.axvline(x, color=c, lw=0.8, ls="--")
+    ax.axvline(2, color=GREY, lw=0.6, ls=":")
+    est = (("lf_true", "o", INK, "true background", -0.2),
+           ("lf_fixed", "s", INK2, "fitted, power law", 0.0),
+           ("lf_knee", "^", GREY, "fitted, knee", 0.2))
+    names = [n for n in MECH_LABELS if n in S.index]
+    for i, n in enumerate(names):
+        r = S.loc[n]
+        ax.plot([r.analytic] * 2, [i - 0.36, i + 0.36], color=INK, lw=1.6,
+                solid_capstyle="butt", alpha=0.35, zorder=1)
+        for col, mk, c, _, dy in est:
+            ax.plot([r[col + "_lo"], r[col + "_hi"]], [i + dy, i + dy], color=c, lw=0.8)
+            ax.plot(r[col], i + dy, mk, color=c, ms=3)
+    ax.set_yticks(range(len(names)))
+    ax.set_yticklabels([MECH_LABELS[n] for n in names], fontsize=6)
+    ax.set_ylim(len(names) - 0.5, -0.6)
+    ax.set_xlim(-0.4, 2.5)
+    ax.set_xlabel("Coupling exponent of the change (λ)")
+    ax.set_title("One parameter differs between conditions", loc="left", color=INK2)
+    ax.legend(handles=[Line2D([], [], marker="|", ls="", color=INK, alpha=0.35, ms=7, mew=1.6,
+                              label="predicted")] +
+              [Line2D([], [], marker=mk, color=c, ls="-", lw=0.8, ms=3, label=lab)
+               for _, mk, c, lab, _ in est],
+              loc="lower right", fontsize=5.5, handlelength=1.4)
+    panel(ax, "a")
+
+    ax = axs[1]
+    ax.plot([0, 2], [0, 2], color=GREY, lw=0.6)
+    groups = ((["mix_gain0.25", "mix_gain0.5", "mix_gain0.75"], "o",
+               "gain + drive: share of\nbackground change from gain", "{:.0%}"),
+              (["sources_phi0.2", "sources_phi0.5", "sources_phi0.9"], "s",
+               "two sources: share of the rhythm\nin the changing source", "{:.0%}"))
+    for keys, mk, lab, fmt in groups:
+        keys = [k for k in keys if k in S.index]
+        for k in keys:
+            r = S.loc[k]
+            ax.plot([r.ols_true, r.ols_true], [r.lf_true_lo, r.lf_true_hi], color=INK, lw=0.8)
+            ax.plot(r.ols_true, r.lf_true, mk, color=INK, ms=3.5, mfc="white" if mk == "s" else INK)
+            mix = k.startswith("mix")
+            share = float(k.split("gain")[-1]) if mix else float(k.split("phi")[-1])
+            # mixture labels to the right of the points, source labels to the left
+            ax.text(r.ols_true + (0.06 if mix else -0.06), r.lf_true, fmt.format(share),
+                    fontsize=5.5, color=INK2, va="center", ha="left" if mix else "right")
+    ax.set_xlim(0, 2)
+    ax.set_ylim(0, 2)
+    ax.set_aspect("equal")
+    ax.set_xlabel("Expected λ (slope of true Δln a on Δln b)")
+    ax.set_ylabel("Estimated λ (log-free, 95% interval)")
+    ax.set_title("Mechanisms or sources mixed", loc="left", color=INK2)
+    ax.legend(handles=[Line2D([], [], marker="o", color=INK, ls="", ms=3.5, label=groups[0][2]),
+                       Line2D([], [], marker="s", color=INK, mfc="white", ls="", ms=3.5,
+                              label=groups[1][2])],
+              loc="upper left", fontsize=5.5, handletextpad=0.3)
+    panel(ax, "b")
+    fig.tight_layout(w_pad=2.0)
+    save(fig, outdir, "figS3_mechanisms")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("outdir")
-    ap.add_argument("--only", default="1,2,3,4,5,6,7,8")
+    ap.add_argument("--only", default="1,2,3,4,5,6,7,8,9")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     todo = {int(x) for x in a.only.split(",")}
     for k, fn in ((1, fig1), (2, fig2), (3, fig3), (4, fig4), (5, fig5),
-                  (6, figs1), (7, figs2), (8, fig6)):
+                  (6, figs1), (7, figs2), (8, fig6), (9, figs3)):
         if k in todo:
             fn(a.outdir)
 

@@ -7,11 +7,20 @@ analyses, keeping the raw files.
                (Apollo doi:10.17863/CAM.68959, CC BY 2.0 UK, 3.7 GB)
   ds003690     OpenNeuro ds003690, passive auditory task of young and older
                adults with pupil and EOG (CC0, 2.7 GB)
+  brake2024_source
+               Brake et al. 2024 manuscript source data, which include the
+               infusion-onset times (figshare 24777990, file 43599408, 5.1 GB)
+  srm          OpenNeuro ds003775, SRM resting-state EEG, 111 adults, 42 of
+               them retested (CC0, 4.8 GB)
+  ds003688     OpenNeuro ds003688, intracranial EEG; only the resting runs
+               and electrode files are fetched (CC0, 4.3 GB)
+  hbn_participants
+               participants.tsv of the eleven HBN-EEG releases (< 1 MB)
 
 Files already present with the right size are skipped, so the script can be
 re-run after an interruption.
 
-Usage: python fetch_open_data.py [brake2024 chennu2016 ds003690] [--root DIR]
+Usage: python fetch_open_data.py [brake2024 chennu2016 ds003690 ...] [--root DIR]
 """
 import argparse
 import os
@@ -89,6 +98,62 @@ def ds003690(root):
         if "/" in rel and "task-passive" not in rel:
             continue                       # other tasks are not needed
         out.append(fetch(f"{S3}/{urllib.parse.quote(key)}", os.path.join(d, rel), size))
+    return out
+
+
+def brake2024_source(root):
+    import json
+    d = os.path.join(root, "brake2024")
+    files = json.load(urllib.request.urlopen(
+        "https://api.figshare.com/v2/articles/24777990/files?page_size=100", timeout=60))
+    size = next(f["size"] for f in files if f["id"] == 43599408)
+    return [fetch("https://ndownloader.figshare.com/files/43599408",
+                  os.path.join(d, "manuscript_source_data.zip"), size)]
+
+
+def openneuro(ds, root, keep=lambda rel: True):
+    d = os.path.join(root, ds)
+    return [fetch(f"{S3}/{urllib.parse.quote(key)}", os.path.join(d, key.split("/", 1)[1]), size)
+            for key, size in s3_list(ds + "/") if keep(key.split("/", 1)[1])]
+
+
+def srm(root):
+    return openneuro("ds003775", root)
+
+
+def ds003688(root):
+    def keep(rel):
+        if "/" not in rel:
+            return True                    # top-level metadata
+        if "/ieeg/" not in rel:
+            return False                   # fMRI and anatomy are not needed
+        name = rel.rsplit("/", 1)[1]
+        return "task-rest" in name or "task-" not in name
+    return openneuro("ds003688", root, keep)
+
+
+HBN_RELEASES = ("ds005505", "ds005506", "ds005507", "ds005508", "ds005509", "ds005510",
+                "ds005511", "ds005512", "ds005514", "ds005515", "ds005516")
+
+
+def hbn_participants(root):
+    """participants.tsv of every HBN-EEG release; ds005516 serves it by version ID."""
+    import json
+    d = os.path.join(root, "hbn_participants")
+    out = []
+    for ds in HBN_RELEASES:
+        dest = os.path.join(d, f"{ds}_participants.tsv")
+        res = fetch(f"{S3}/{ds}/participants.tsv", dest)
+        if res not in ("ok", "cached"):
+            q = json.dumps({"query": f'{{ dataset(id: "{ds}") {{ latestSnapshot {{ files '
+                                     f'{{ filename urls }} }} }} }}'}).encode()
+            req = urllib.request.Request("https://openneuro.org/crn/graphql", data=q,
+                                         headers={**HEAD, "Content-Type": "application/json"})
+            files = json.load(urllib.request.urlopen(req, timeout=120))["data"]["dataset"][
+                "latestSnapshot"]["files"]
+            url = next((f["urls"][0] for f in files if f["filename"] == "participants.tsv"), None)
+            res = fetch(url, dest) if url else "failed: no participants.tsv in snapshot"
+        out.append(res)
     return out
 
 

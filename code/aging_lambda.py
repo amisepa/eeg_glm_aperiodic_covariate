@@ -135,7 +135,9 @@ def qc(T):
 
 def contrast(D, name, y_a, y_b, x=None, cov=None, extra=None):
     r = effect_curve(y_a, y_b, x=x, covariates=cov, rng=np.random.default_rng(0))
-    row = dict(contrast=name, n=r["n"], s_a=r["s_a"], s_b=r["s_b"], lam_star=r["lam_star"],
+    row = dict(contrast=name, n=r["n"], s_a=r["s_a"], s_b=r["s_b"], s_b_lo=r["s_b_ci"][0],
+               s_b_hi=r["s_b_ci"][1], lam_star_bounded=r["lam_star_bounded"],
+               lam_star=r["lam_star"],
                ci_lo=r["ci"][0], ci_hi=r["ci"][1], hdi_lo=r["hdi"][0], hdi_hi=r["hdi"][1],
                p_cross_in_01=r["p_cross_in_01"],
                lam0=r["curve"][0][0], lam0_lo=r["curve"][0][1], lam0_hi=r["curve"][0][2],

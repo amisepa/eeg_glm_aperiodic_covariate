@@ -151,7 +151,9 @@ def main():
                 c0 = r["curve"][0]
                 c1 = r["curve"][-1]
                 out.append(dict(window=win, group=grp, measure=name, n=r["n"],
-                                s_a=r["s_a"], s_b=r["s_b"], lam_star=r["lam_star"],
+                                s_a=r["s_a"], s_b=r["s_b"], s_b_lo=r["s_b_ci"][0],
+                                s_b_hi=r["s_b_ci"][1], lam_star_bounded=r["lam_star_bounded"],
+                                lam_star=r["lam_star"],
                                 hdi_lo=r["hdi"][0], hdi_hi=r["hdi"][1],
                                 lam0=c0[0], lam0_lo=c0[1], lam0_hi=c0[2],
                                 lam1=c1[0], lam1_lo=c1[1], lam1_hi=c1[2],

@@ -114,6 +114,8 @@ def main():
                                      covariates=cov[ok], rng=np.random.default_rng(0))
                     out.append(dict(agent=agent, model=model, band=bname, adjust=adj, n=r["n"],
                                     excluded_a_le_0=int((~ok).sum()), s_a=r["s_a"], s_b=r["s_b"],
+                                    s_b_lo=r["s_b_ci"][0], s_b_hi=r["s_b_ci"][1],
+                                    lam_star_bounded=r["lam_star_bounded"],
                                     lam_star=r["lam_star"], hdi_lo=r["hdi"][0], hdi_hi=r["hdi"][1],
                                     p_cross_in_01=r["p_cross_in_01"],
                                     lam0=r["curve"][0][0], lam0_lo=r["curve"][0][1],

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lambdacurve"
+version = "0.1.0"
+description = "Whether a periodic-power result depends on the assumed periodic/aperiodic coupling: the lambda-curve, its crossover, a log-free coupling estimator and a matched pipeline null."
+readme = "README.md"
+requires-python = ">=3.9"
+license-files = ["LICENSE"]
+authors = [{ name = "Cedric Cannard" }]
+dependencies = ["numpy>=1.22", "scipy>=1.8"]
+
+[project.optional-dependencies]
+pandas = ["pandas>=1.4"]
+test = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

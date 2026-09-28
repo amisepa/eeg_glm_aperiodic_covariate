@@ -13,14 +13,20 @@ alpha and beta rise earlier.
 Here each spectrogram is averaged into 5-s bins, the same model is fitted to
 each bin over 0.5-100 Hz (55-65 Hz excluded), and band power is split into
 the fitted aperiodic part b and the rest a = total - b for delta (1-4 Hz),
-alpha (8-15 Hz) and beta (15-30 Hz). Changes from baseline (the first 60 s,
-which precede LOC by at least 4 min; the published baseline is the time
-before infusion onset, not shared) to a pre-LOC window (-60 to -10 s) and a
-post-LOC window (+10 to +60 s) are reported as a function of lambda, with
-the crossover lambda*, and, for comparison, Brake's own detrended measure,
-the mean of 10 log10(P / L) over the band.
+alpha (8-15 Hz) and beta (15-30 Hz). Changes from baseline to a pre-LOC
+window (-60 to -10 s) and a post-LOC window (+10 to +60 s) are reported as a
+function of lambda, with the crossover lambda*, and, for comparison, Brake's
+own detrended measure, the mean of 10 log10(P / L) over the band.
 
-Usage: python brake_analysis.py [--data DIR] [--bin 5]
+Two baselines: "pre-infusion", the minute before each patient's infusion
+onset (to 5 s before it; from the authors' timing table in the manuscript
+source data, figshare file 43599408, exported from MATLAB as
+data_time_information.csv; the spectrograms start 300 s before LOC, so one
+patient whose infusion began 285 s before LOC has 15 s), and "first 60 s"
+of the spectrogram, the approximation used when the timing was not
+available.
+
+Usage: python brake_analysis.py [--data ZIP] [--timing CSV] [--bin 5]
 Writes results/brake_bins.csv (per patient and bin) and results/brake_lambda.csv.
 """
 import argparse
@@ -78,6 +84,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=os.path.join(os.environ.get("EEG_DATA", "eeg_data"),
                                                    "brake2024", "spectrogram_Cz_all_subjects.zip"))
+    ap.add_argument("--timing", default=os.path.join(
+        os.environ.get("EEG_DATA", "eeg_data"), "brake2024", "source", "_data", "EEG_data",
+        "data_time_information.csv"))
     ap.add_argument("--bin", type=float, default=5.0)
     a = ap.parse_args()
     z = zipfile.ZipFile(a.data)
@@ -113,25 +122,38 @@ def main():
     out = []
     W = {w: B[(B.t >= lo) & (B.t < hi)].groupby("patient").mean(numeric_only=True)
          for w, (lo, hi) in WINDOWS.items()}
-    for band in BANDS:
-        for win in ("pre-LOC", "post-LOC"):
-            d = W[win].join(W["baseline"], rsuffix="_0", how="inner")
-            with np.errstate(invalid="ignore", divide="ignore"):
-                dA = np.log(d[f"{band}_a"].where(d[f"{band}_a"] > 0)) - \
-                    np.log(d[f"{band}_a_0"].where(d[f"{band}_a_0"] > 0))
-            dB = np.log(d[f"{band}_b"]) - np.log(d[f"{band}_b_0"])
-            dT = np.log(d[f"{band}_tot"]) - np.log(d[f"{band}_tot_0"])
-            dBrake = d[f"{band}_brake_db"] - d[f"{band}_brake_db_0"]
-            r = effect_curve(dA.to_numpy(), dB.to_numpy(), rng=np.random.default_rng(0))
-            tt, tb = stats.ttest_1samp(dT, 0), stats.ttest_1samp(dBrake, 0)
-            out.append(dict(band=band, window=win, n=r["n"], n_total=len(d),
-                            total_dB=float(10 / np.log(10) * dT.mean()), total_p=float(tt.pvalue),
-                            brake_dB=float(dBrake.mean()), brake_p=float(tb.pvalue),
-                            s_a=r["s_a"], s_b=r["s_b"], lam_star=r["lam_star"],
-                            hdi_lo=r["hdi"][0], hdi_hi=r["hdi"][1],
-                            lam0=r["curve"][0][0], lam0_lo=r["curve"][0][1], lam0_hi=r["curve"][0][2],
-                            lam1=r["curve"][-1][0], lam1_lo=r["curve"][-1][1], lam1_hi=r["curve"][-1][2],
-                            p_cross_in_01=r["p_cross_in_01"]))
+    bases = {"first 60 s": W["baseline"]}
+    if os.path.exists(a.timing):
+        T = pd.read_csv(a.timing)
+        T.index = np.arange(1, len(T) + 1)               # row k = patient k
+        onset = (T.infusion_onset - T.object_drop).reindex(B.patient).to_numpy()
+        pre = B[(B.t >= onset - 60) & (B.t < onset - 5)]
+        bases["pre-infusion"] = pre.groupby("patient").mean(numeric_only=True)
+        dur = pre.groupby("patient").size() * a.bin
+        print("pre-infusion baseline, s per patient:", dur.to_dict())
+    for base, W0 in bases.items():
+        for band in BANDS:
+            for win in ("pre-LOC", "post-LOC"):
+                d = W[win].join(W0, rsuffix="_0", how="inner")
+                with np.errstate(invalid="ignore", divide="ignore"):
+                    dA = np.log(d[f"{band}_a"].where(d[f"{band}_a"] > 0)) - \
+                        np.log(d[f"{band}_a_0"].where(d[f"{band}_a_0"] > 0))
+                dB = np.log(d[f"{band}_b"]) - np.log(d[f"{band}_b_0"])
+                dT = np.log(d[f"{band}_tot"]) - np.log(d[f"{band}_tot_0"])
+                dBrake = d[f"{band}_brake_db"] - d[f"{band}_brake_db_0"]
+                r = effect_curve(dA.to_numpy(), dB.to_numpy(), rng=np.random.default_rng(0))
+                tt, tb = stats.ttest_1samp(dT, 0), stats.ttest_1samp(dBrake, 0)
+                c = r["curve"]
+                out.append(dict(baseline=base, band=band, window=win, n=r["n"], n_total=len(d),
+                                total_dB=float(10 / np.log(10) * dT.mean()),
+                                total_p=float(tt.pvalue), brake_dB=float(dBrake.mean()),
+                                brake_p=float(tb.pvalue), s_a=r["s_a"], s_b=r["s_b"],
+                                s_b_lo=r["s_b_ci"][0], s_b_hi=r["s_b_ci"][1],
+                                lam_star_bounded=r["lam_star_bounded"],
+                                lam_star=r["lam_star"], hdi_lo=r["hdi"][0], hdi_hi=r["hdi"][1],
+                                lam0=c[0][0], lam0_lo=c[0][1], lam0_hi=c[0][2],
+                                lam1=c[-1][0], lam1_lo=c[-1][1], lam1_hi=c[-1][2],
+                                p_cross_in_01=r["p_cross_in_01"]))
     O = pd.DataFrame(out)
     O.to_csv(os.path.join(RES, "brake_lambda.csv"), index=False)
     pd.set_option("display.width", 220)

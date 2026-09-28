@@ -6,12 +6,16 @@ Writes to results/:
     hbn_chan.csv  one row per subject x condition x channel (censored
                   regression only), for topographies
 
-Usage: python hbn_fit.py [--psd-dir DIR] [--limit N]
+All extracted participants are fitted; quality control is applied in
+hbn_lambda.py.
+
+Usage: python hbn_fit.py [--psd-dir DIR] [--limit N] [--workers N]
 """
 import argparse
 import glob
 import os
 import warnings
+from multiprocessing import Pool
 
 import numpy as np
 import pandas as pd
@@ -195,12 +199,23 @@ def process_file(path, want_specparam=True):
     return roi_rows, chan_rows
 
 
+def process_job(args):
+    """Worker wrapper: (rows, channel rows, error message or None)."""
+    path, want_specparam = args
+    try:
+        r, c = process_file(path, want_specparam)
+    except Exception as e:
+        return None, None, f"{os.path.basename(path)}: {type(e).__name__}: {e}"
+    return r, c, None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--psd-dir", default=os.environ.get("HBN_OUT", "hbn_psd"))
     ap.add_argument("--out-dir", default=None)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--no-specparam", action="store_true")
+    ap.add_argument("--workers", type=int, default=1)
     a = ap.parse_args()
     outdir = a.out_dir or os.path.join(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))), "results")
@@ -211,18 +226,20 @@ def main():
         files = files[:a.limit]
     print(f"{len(files)} PSD files", flush=True)
 
+    jobs = [(p, not a.no_specparam) for p in files]
+    pool = Pool(a.workers) if a.workers > 1 else None
+    results = pool.imap(process_job, jobs, chunksize=4) if pool else map(process_job, jobs)
     roi, chan = [], []
-    for k, p in enumerate(files):
-        try:
-            r, c = process_file(p, want_specparam=not a.no_specparam)
-        except Exception as e:
-            print(f"  {os.path.basename(p)}: {type(e).__name__}: {e}", flush=True)
-            continue
+    for k, (r, c, err) in enumerate(results):
+        if err:
+            print(f"  {err}", flush=True)
         if r:
             roi += r
             chan += c
         if (k + 1) % 50 == 0:
             print(f"  {k+1}/{len(files)}", flush=True)
+    if pool:
+        pool.close()
 
     pd.DataFrame(roi).to_csv(os.path.join(outdir, "hbn_roi.csv"), index=False)
     pd.DataFrame(chan).to_csv(os.path.join(outdir, "hbn_chan.csv"), index=False)

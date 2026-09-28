@@ -30,7 +30,12 @@ The code covers:
   with its null simulation;
 - re-analyses of published claims in five more open datasets (adult aging,
   anaesthesia, propofol sedation and induction), and a coupling estimator
-  that does not need positive periodic power, tested in three designs.
+  that does not need positive periodic power, tested within recordings,
+  between sessions, under sedation and in intracranial recordings;
+- a synaptic model of the EEG showing what λ means physically, and a
+  scalp-to-cortex distance analysis from HBN MRI;
+- `lambdacurve/`, a small Python package (and `code/lib/oof_lambda_curve.m`
+  for MATLAB) that reports how a periodic-power result depends on λ.
 
 The accompanying paper is in preparation; a preprint will be linked here.
 
@@ -59,6 +64,14 @@ The accompanying paper is in preparation; a preprint will be linked here.
   (within-recording fluctuations: 1.3-1.9 eyes closed, -0.1-0.7 eyes open).
   The usual regression of log periodic on log background power, restricted
   to positive periodic power, is biased towards 1; lambda_gmm.py is not.
+- λ is a property of the comparison, not of the tissue. In a synaptic model
+  a gain change gives λ = 1, a change in drive 0 or 2, stronger inhibition
+  about 1.3; mixtures give the background-weighted average, which exceeds 1
+  when the changing source carries more of the rhythm than of the
+  background.
+- Scalp-to-cortex distance measured from MRI grows with age but explains
+  little of the HBN background decline (share 0.02, CI -0.13 to 0.18); the
+  developmental reversal is not a gain artefact.
 
 ## Layout
 
@@ -98,8 +111,18 @@ The accompanying paper is in preparation; a preprint will be linked here.
       brake_analysis.py          propofol induction spectrograms
       ds003690_epochs.py, ds003690_lambda.py, dortmund_levels.py
                                  λ from fluctuations within a recording
+      srm_extract_psd.py, srm_lambda.py   SRM adult EEG, test-retest λ
+      ieeg_epochs.py, ieeg_lambda.py      intracranial rest recordings
+      inject_calibration.py      calibration with a known rhythm added to
+                                 recorded spectra, with a common drive
+      sim_mechanisms.py          synaptic model: what sets λ
+      hbn_age_psychopathology.py  age result with CBCL scores as covariates
+      hbn_mri_fetch.py, hbn_scalp_distance.py, hbn_gain_mri.py
+                                 scalp-to-cortex distance and scalp gain
       breadth_summary.py, identification_summary.py   summary tables
-      figures/make_figures.py    Figures 1-6 and Supplementary Figures 1-2
+      figures/make_figures.py    Figures 1-6 and Supplementary Figures 1-3
+    lambdacurve/                 Python package: λ-curve, crossover λ*,
+                                 log-free estimator, matched null
     results/                     group-level outputs (CSV)
     archive/                     superseded first simulations (see its README)
 

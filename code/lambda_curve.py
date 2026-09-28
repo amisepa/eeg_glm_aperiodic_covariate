@@ -87,6 +87,8 @@ def effect_curve(la, lb, x=None, covariates=None, grid=None, nboot=2000, rng=Non
     dropped. Returns a dict with s_a, s_b, lam_star, its pairs-bootstrap
     percentile CI and Bayesian-bootstrap HDI, the share of Bayesian draws with
     a crossover inside [0, 1], and the curve (grid, estimate, 2.5%, 97.5%).
+    s_b_ci is the pairs-bootstrap CI of s_b; when it includes 0 the crossover
+    is unbounded (lam_star_bounded False) and its intervals mean nothing.
     """
     rng = rng or np.random.default_rng(0)
     grid = np.round(np.arange(0, 1.0001, 0.05), 2) if grid is None else np.asarray(grid)
@@ -125,7 +127,9 @@ def effect_curve(la, lb, x=None, covariates=None, grid=None, nboot=2000, rng=Non
     curve = np.array([[s_a - g * s_b,
                        *np.percentile(boot[:, 0] - g * boot[:, 1], [2.5, 97.5])]
                       for g in grid])
-    return dict(n=n, s_a=float(s_a), s_b=float(s_b),
+    s_b_ci = tuple(np.percentile(boot[:, 1], [2.5, 97.5]))
+    return dict(n=n, s_a=float(s_a), s_b=float(s_b), s_b_ci=s_b_ci,
+                lam_star_bounded=bool(np.sign(s_b_ci[0]) == np.sign(s_b_ci[1])),
                 lam_star=float(s_a / s_b) if s_b != 0 else np.nan,
                 ci=tuple(np.nanpercentile(ls_boot, [2.5, 97.5])),
                 hdi=hdi(ls_bayes),

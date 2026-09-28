@@ -155,17 +155,18 @@ def estimate_levels(T, B, Bz, groups, X=None, grid=None):
     return dict(lam=float(lam), gamma=profile(lam)[1], roots=[float(r) for r in roots])
 
 
-def bootstrap(t1, t2, b1, b2, nboot=300, rng=None):
+def bootstrap(t1, t2, b1, b2, nboot=300, rng=None, grid=None):
     """Point estimate plus subject-bootstrap percentile interval.
 
     Each bootstrap sample takes the root nearest the full-sample estimate;
     boot_fail is the share of samples in which the moment had no root.
+    grid is passed to estimate().
     """
     rng = rng or np.random.default_rng(0)
-    est = estimate(t1, t2, b1, b2)
+    est = estimate(t1, t2, b1, b2, grid=grid)
     n = t1.shape[0]
     near = est["lam"] if np.isfinite(est["lam"]) else None
-    bs = np.array([estimate(t1[i], t2[i], b1[i], b2[i], near=near)["lam"]
+    bs = np.array([estimate(t1[i], t2[i], b1[i], b2[i], grid=grid, near=near)["lam"]
                    for i in (rng.integers(0, n, n) for _ in range(nboot))])
     ok = np.isfinite(bs)
     est.update(ci=tuple(np.percentile(bs[ok], [2.5, 97.5])) if ok.sum() > 10

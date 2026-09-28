@@ -21,10 +21,17 @@ RES = os.path.join(HERE, "..", "results")
 
 
 def row(domain, claim, source, dataset, n, r, unit):
+    """One claim. lam_star_bounded is False when the interval of s_b, the effect
+    on ln b, includes 0: the crossover is then unbounded and its HDI is not
+    reported."""
+    bounded = bool(r.get("lam_star_bounded", True))
     return dict(domain=domain, claim=claim, source=source, dataset=dataset, n=int(n),
                 lam0=r["lam0"], lam0_lo=r["lam0_lo"], lam0_hi=r["lam0_hi"],
                 lam1=r["lam1"], lam1_lo=r["lam1_lo"], lam1_hi=r["lam1_hi"],
-                lam_star=r["lam_star"], hdi_lo=r["hdi_lo"], hdi_hi=r["hdi_hi"],
+                s_b_lo=r.get("s_b_lo", np.nan), s_b_hi=r.get("s_b_hi", np.nan),
+                lam_star_bounded=bounded, lam_star=r["lam_star"],
+                hdi_lo=r["hdi_lo"] if bounded else np.nan,
+                hdi_hi=r["hdi_hi"] if bounded else np.nan,
                 p_cross_in_01=r["p_cross_in_01"], unit=unit)
 
 
@@ -57,7 +64,8 @@ def hbn_p01():
         d = w[w[f"a_{cond}"] > 0].dropna(subset=["age"])
         r = effect_curve(np.log(d[f"a_{cond}"]), np.log(d[f"b_{cond}"]), x=d.age,
                          rng=np.random.default_rng(0))
-        out[cond] = r["p_cross_in_01"]
+        out[cond] = dict(p_cross_in_01=r["p_cross_in_01"], s_b_lo=r["s_b_ci"][0],
+                         s_b_hi=r["s_b_ci"][1], lam_star_bounded=r["lam_star_bounded"])
     return out
 
 
@@ -71,12 +79,12 @@ def main():
         g = R[(R["sample"] == "qc") & (R.model == "fixed") & (R.cond == cond) & (R.estimator == "ols")]
         c = C[(C["sample"] == "qc") & (C.model == "fixed") & (C.cond == cond)].iloc[0]
         r0, r1 = g[g.lam == 0].iloc[0], g[g.lam == 1].iloc[0]
-        p01 = p01s.get(cond, np.nan)
+        extra = p01s.get(cond, dict(p_cross_in_01=np.nan))
         out.append(row("development", f"alpha changes with age, {label}", "Tröndle et al. 2022",
                        "HBN, 5-22 y", r0.n,
                        dict(lam0=r0.est, lam0_lo=r0.lo, lam0_hi=r0.hi, lam1=r1.est, lam1_lo=r1.lo,
                             lam1_hi=r1.hi, lam_star=c.lam_star, hdi_lo=c.hdi_lo, hdi_hi=c.hdi_hi,
-                            p_cross_in_01=p01), "ln per year"))
+                            **extra), "ln per year"))
     A = pd.read_csv(os.path.join(RES, "aging_lambda.csv"))
     F = A[A.model == "fixed"]
     for contrast, claim, source, dataset, unit in (
@@ -105,6 +113,9 @@ def main():
         out.append(row("sedation", claim, "Chennu et al. 2016", "propofol, baseline vs moderate",
                        r.n.iloc[0], r.iloc[0], "ln"))
     B = pd.read_csv(os.path.join(RES, "brake_lambda.csv"))
+    if "baseline" in B:
+        B = B[B.baseline == ("pre-infusion" if (B.baseline == "pre-infusion").any()
+                             else "first 60 s")]
     for band, win, claim in (("delta", "pre-LOC", "delta does not rise before loss of consciousness"),
                              ("alpha", "pre-LOC", "alpha rises before loss of consciousness"),
                              ("beta", "pre-LOC", "beta rises before loss of consciousness")):
