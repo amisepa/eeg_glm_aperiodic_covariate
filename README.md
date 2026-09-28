@@ -61,7 +61,9 @@ The accompanying paper is in preparation; a preprint will be linked here.
   (VitalDB) hold under both rules.
 - No open design identifies λ. Estimates move with the specification
   (eyes closed vs open: 0.29-0.80), with eye state and over a session
-  (within-recording fluctuations: 1.3-1.9 eyes closed, -0.1-0.7 eyes open).
+  (within-recording fluctuations: 1.3-1.9 eyes closed, -0.1-0.7 eyes open),
+  between sessions (0.33 and 0.87) and in intracranial recordings (0.93; 0.76
+  over posterior contacts).
   The usual regression of log periodic on log background power, restricted
   to positive periodic power, is biased towards 1; lambda_gmm.py is not.
 - λ is a property of the comparison, not of the tissue. In a synaptic model

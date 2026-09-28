@@ -17,3 +17,10 @@ between doses: propofol baseline vs moderate,Chennu 2016,"posterior, censor 6-16
 between doses: propofol baseline vs moderate,Chennu 2016,"frontal, censor 6-16",20,0.3284817793713123,-0.4097281941819875,1.416768523093246,
 between doses: propofol baseline vs moderate,Chennu 2016,"posterior, censor 6-25",20,1.2144475435830413,0.125866740809706,1.472097410653396,
 between doses: propofol baseline vs moderate,Chennu 2016,"frontal, censor 6-25",20,0.8800652722633396,-0.2797340253774225,1.3995709708539208,
+between sessions: test-retest,"SRM, 17-71 y","SRM, eyes closed, later session",41,0.3272343570216789,0.0168279758159891,0.6195580795965574,
+between sessions: test-retest,"Dortmund, 20-70 y","Dortmund, eyes closed, 5 years",197,0.8740442618462556,0.6140000209924574,1.1456478959734306,
+between sessions: test-retest,"Dortmund, 20-70 y","Dortmund, eyes open, 5 years",198,0.2750964470521787,-0.0927023709342526,2.94312501364943,
+"within session: epoch fluctuations, intracranial",ds003688 iEEG,"all channels, covariates: none",1648,0.9306209947587356,0.7998618140071739,1.07894711044695,"0 -> 0.01, 0.5 -> 0.54, 1 -> 1.02"
+"within session: epoch fluctuations, intracranial",ds003688 iEEG,"all channels, covariates: EOG + EMG",1648,0.93283873452689,0.8014335784367089,1.0791708020885116,"0 -> 0.01, 0.5 -> 0.54, 1 -> 1.02"
+"within session: epoch fluctuations, intracranial",ds003688 iEEG,"posterior channels, covariates: none",203,0.7596080619685399,0.6945901884860326,0.8495883986883621,"0 -> 0.01, 0.5 -> 0.54, 1 -> 1.02"
+"within session: epoch fluctuations, intracranial",ds003688 iEEG,"posterior channels, covariates: EOG + EMG",203,0.7660832634129643,0.700426688695528,0.8594845709011296,"0 -> 0.01, 0.5 -> 0.54, 1 -> 1.02"
