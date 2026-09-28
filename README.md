@@ -1,7 +1,8 @@
-# eeg_glm_aperiodic_covariate
+# oneoverf-separation
 
-Separating periodic (oscillatory) from aperiodic (1/f) activity in EEG power
-spectra with a generalized linear model.
+Separating periodic (oscillatory) from aperiodic (1/f) activity in neural
+power spectra, and the assumption hidden in that step. Part of the
+sccn/OneOverF collaboration (separation pillar).
 
 Removing the aperiodic background from a spectrum always involves an
 assumption about how it combines with the oscillations. Subtracting it in
@@ -14,8 +15,10 @@ coupling exponent λ:
 
 where L is the aperiodic component and Gₙ are peak shapes. λ = 0 is additive
 and λ = 1 multiplicative. For band power this reduces to log a = log c +
-λ log b, so λ is the coefficient of the aperiodic covariate in a Gamma GLM
-(log link) of periodic power.
+λ log b: in a generalized linear model of periodic power, λ is the
+coefficient of the background entered as a covariate. Any effect measured
+under an assumed λ is then linear in λ, s(λ) = s_a − λ s_b, and changes sign
+at a single crossover λ* = s_a / s_b.
 
 The code covers:
 
@@ -122,7 +125,7 @@ The accompanying paper is in preparation; a preprint will be linked here.
       hbn_mri_fetch.py, hbn_scalp_distance.py, hbn_gain_mri.py
                                  scalp-to-cortex distance and scalp gain
       breadth_summary.py, identification_summary.py   summary tables
-      figures/make_figures.py    Figures 1-6 and Supplementary Figures 1-3
+      figures/make_figures.py    Figures 1-5 and Supplementary Figures 1-5
     lambdacurve/                 Python package: λ-curve, crossover λ*,
                                  log-free estimator, matched null
     results/                     group-level outputs (CSV)

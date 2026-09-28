@@ -1,16 +1,19 @@
-"""Figures 1-5 of the paper.
+"""Figures of the paper.
 
-Figure 1  the coupling family and what specparam and IRASA assume
-Figure 2  identifiability: single spectrum vs across spectra
-Figure 3  consequences for condition contrasts (sim02, steepening scenario)
-Figure 4  alpha power against age under each separation rule (HBN)
-Figure 5  estimating lambda from eyes open vs eyes closed (HBN)
-Suppl. 1  robustness of the age slopes across estimators (--only 6)
-Suppl. 2  gain tipping point (--only 7)
-Figure 6  published claims re-tested, and every estimate of lambda (--only 8;
-          reads results/breadth_summary.csv and identification_summary.csv)
-Suppl. 3  what sets lambda in a synaptic model (--only 9; reads
-          results/sim_mechanisms.csv)
+Main text
+  1  the coupling family and what specparam and IRASA assume
+  2  alpha power against age under each separation rule (HBN)
+  3  published claims re-tested: crossover lambda* per claim
+     (results/breadth_summary.csv)
+  4  every estimate of lambda, by design (results/hbn_lambda_gmm.csv,
+     identification_summary.csv)
+  5  what sets lambda in a synaptic model (results/sim_mechanisms.csv)
+Supplementary (--only 11-15)
+  S1 identifiability: single spectrum vs across spectra
+  S2 consequences for condition contrasts (sim02, steepening scenario)
+  S3 spatial test against its null (fitted and fit-free)
+  S4 robustness of the age slopes across estimators
+  S5 gain tipping point
 
 Inputs: results/sim01.mat, results/sim02_steepen.mat, results/sim_topography_null_flanks.csv,
 results/hbn_topography_flanks.csv,
@@ -20,7 +23,7 @@ per-subject files results/hbn_kp_fits.csv and results/hbn_topography*.npz
 (regenerable with the scripts in code/). Ages come from the PSD files in
 $HBN_OUT.
 
-Usage: python make_figures.py OUTDIR [--only 1,4]
+Usage: python make_figures.py OUTDIR [--only 1,2,11]
 """
 import argparse
 import glob
@@ -74,7 +77,17 @@ def null_bar(ax, x, lo, hi, min_h=0.02):
             solid_capstyle="butt", alpha=0.6)
 
 
+# output names in the current numbering, keyed by the name each function saves
+RENAME = {"fig4_age_reversal": "fig2_age_reversal",
+          "figS3_mechanisms": "fig5_mechanisms",
+          "fig2_identifiability": "figS1_identifiability",
+          "fig3_condition_contrasts": "figS2_condition_contrasts",
+          "figS1_age_robustness": "figS4_age_robustness",
+          "figS2_gain_tipping": "figS5_gain_tipping"}
+
+
 def save(fig, outdir, name):
+    name = RENAME.get(name, name)
     for ext in ("png", "pdf"):
         fig.savefig(os.path.join(outdir, f"{name}.{ext}"), bbox_inches="tight")
     plt.close(fig)
@@ -447,77 +460,6 @@ def fig4(outdir):
 
 
 # ---- Figure 5 -----------------------------------------------------------
-def fig5(outdir):
-    fig, axs = plt.subplots(1, 3, figsize=(W2, 2.3))
-
-    # (a) specification curve, log-free estimator (identification_summary.py)
-    ax = axs[0]
-    k = pd.read_csv(os.path.join(RES, "hbn_lambda_gmm.csv"))
-    k["label"] = [f"{'knee+plateau' if m == 'knee_plateau' else 'power law'}\n"
-                  f"{'censor 6-16 Hz' if w.startswith('censor') else 'flanks'}"
-                  for m, w in zip(k.model, k.window)]
-    k = k.sort_values("lam").reset_index(drop=True)
-    y = np.arange(len(k))
-    ax.errorbar(k.lam, y, xerr=[k.lam - k.lo, k.hi - k.lam],
-                fmt="o", color=INK, ms=4, lw=1, capsize=0)
-    ax.axvline(0, color=C0, lw=0.8, ls="--")
-    ax.axvline(1, color=C1, lw=0.8, ls="--")
-    ax.set_yticks(y)
-    ax.set_yticklabels(k.label)
-    ax.set_xlabel("λ̂, eyes closed vs open")
-    ax.set_xlim(-0.1, 1.1)
-    ax.set_title("Specification moves the estimate", loc="left", color=INK2)
-    panel(ax, "a")
-
-    # (b) spatial test: real vs null (fitted exponent)
-    ax = axs[1]
-    specs = [("2-40", ""), ("4-40", "_f4-40"), ("5-40", "_f5-40"), ("2-30", "_f2-30")]
-    null = pd.read_csv(os.path.join(RES, "sim_topography_null.csv"))
-    for j, (lab, tag) in enumerate(specs):
-        lo_, hi_ = (float(v) for v in lab.split("-"))
-        nn = null[(null.fit_lo == lo_) & (null.fit_hi == hi_)].r_exp_alpha
-        null_bar(ax, j, nn.min(), nn.max())
-        d = np.load(os.path.join(RES, f"hbn_topography{tag}.npz"))
-        mE, mA = np.nanmean(d["d_exponent"], 0), np.nanmean(d["d_log_a"], 0)
-        g = np.isfinite(mE) & np.isfinite(mA)
-        ax.plot(j, np.corrcoef(mE[g], mA[g])[0, 1], "o", color=C0, ms=5)
-    ax.axhline(0, color=INK2, lw=0.6)
-    ax.set_xticks(range(len(specs)))
-    ax.set_xticklabels([s_[0] + " Hz" for s_ in specs])
-    ax.set_xlabel("Aperiodic fit range")
-    ax.set_ylabel("Spatial r, Δexponent vs Δalpha maps")
-    from matplotlib.lines import Line2D
-    from matplotlib.patches import Patch
-    ax.legend(handles=[Line2D([], [], marker="o", ls="none", color=C0, ms=5,
-                              label="HBN"),
-                       Patch(color=GREY, alpha=0.6,
-                             label="simulations with no\nbackground change")],
-              loc="lower left")
-    ax.set_title("Fitted-exponent test vs its null", loc="left", color=INK2)
-    panel(ax, "b")
-
-    # (c) fit-free flank test: real vs null
-    ax = axs[2]
-    fr = pd.read_csv(os.path.join(RES, "hbn_topography_flanks.csv"))
-    fn = pd.read_csv(os.path.join(RES, "sim_topography_null_flanks.csv"))
-    for j, (fl, lab) in enumerate((("low", "2-4 Hz"), ("high", "30-40 Hz"))):
-        nn = fn[fn.flank == fl].r_flank_alpha
-        null_bar(ax, j, nn.min(), nn.max())
-        r = fr[(fr.flank == fl) & (fr.group == "all")].iloc[0]
-        ax.errorbar(j, r.r, yerr=[[r.r - r.lo], [r.hi - r.r]], fmt="o", color=C0,
-                    ms=5, lw=1, capsize=0)
-    ax.axhline(0, color=INK2, lw=0.6)
-    ax.set_xticks([0, 1])
-    ax.set_xticklabels(["2-4 Hz", "30-40 Hz"])
-    ax.set_xlim(-0.6, 1.6)
-    ax.set_xlabel("Flank band (no fitting)")
-    ax.set_ylabel("Spatial r, Δflank vs Δalpha maps")
-    ax.set_title("Fit-free test vs its null", loc="left", color=INK2)
-    panel(ax, "c")
-    fig.tight_layout(w_pad=3.0)
-    save(fig, outdir, "fig5_estimating_lambda")
-
-
 # ---- Supplementary Figures 1 and 2 ------------------------------------
 def figs1(outdir):
     """Age slope of alpha under lambda = 0 and 1 across estimators and samples."""
@@ -598,23 +540,18 @@ def figs2(outdir):
 
 
 # ---- Figure 6 -----------------------------------------------------------
-def fig6(outdir):
-    """Published claims re-tested under both rules, and every attempt to
-    estimate lambda."""
+def fig_claims(outdir):
+    """Published claims re-tested under both rules: crossover lambda* per claim."""
+    from matplotlib.lines import Line2D
     S = pd.read_csv(os.path.join(RES, "breadth_summary.csv"))
-    I = pd.read_csv(os.path.join(RES, "identification_summary.csv"))
-    fig, axs = plt.subplots(1, 2, figsize=(W2, 4.3), gridspec_kw=dict(width_ratios=[1.1, 1]))
-
-    # (a) crossover lambda* per claim
-    ax = axs[0]
+    fig, ax = plt.subplots(figsize=(W2 * 0.72, 4.0))
     lo_x, hi_x = -1.0, 4.0
     ax.axvspan(0, 1, color=CH, alpha=0.12, lw=0)
     ax.text(0.5, len(S) - 1.0, "assumption\ndecides", ha="center", va="center", fontsize=5.5,
             color=INK2)
     col = {"reverses": C1, "depends on lambda": INK, "holds under both": GREY,
            "null under both": GREY}
-    for i, r in enumerate(S.itertuples()):
-        y = i
+    for y, r in enumerate(S.itertuples()):
         c = col.get(r.verdict, GREY)
         x0, x1 = np.clip([r.hdi_lo, r.hdi_hi], lo_x, hi_x)
         ax.plot([x0, x1], [y, y], color=c, lw=1)
@@ -632,31 +569,35 @@ def fig6(outdir):
     ax.set_xlim(lo_x - 0.1, hi_x + 0.1)
     ax.set_ylim(len(S) - 0.4, -0.6)
     ax.set_xlabel("Crossover λ* (assumed λ at which the effect changes sign)")
-    from matplotlib.lines import Line2D
-    fig.legend(handles=[Line2D([], [], color=C1, marker="o", ls="-", ms=4, label="reverses"),
-                        Line2D([], [], color=INK, marker="o", ls="-", ms=4, label="depends on λ"),
-                        Line2D([], [], color=GREY, marker="o", mfc="white", ls="-", ms=4,
-                               label="holds under both, or null")],
-               loc="lower left", bbox_to_anchor=(0.02, -0.01), ncol=3, fontsize=6)
-    ax.set_title("Published claims re-tested", loc="left", color=INK2)
-    panel(ax, "a")
+    ax.legend(handles=[Line2D([], [], color=C1, marker="o", ls="-", ms=4, label="reverses"),
+                       Line2D([], [], color=INK, marker="o", ls="-", ms=4, label="depends on λ"),
+                       Line2D([], [], color=GREY, marker="o", mfc="white", ls="-", ms=4,
+                              label="holds under both, or null")],
+              loc="upper center", bbox_to_anchor=(0.4, -0.09), ncol=3, fontsize=6)
+    fig.tight_layout()
+    save(fig, outdir, "fig3_published_claims")
 
-    # (b) lambda-hat by design, grouped, with a header row per design
-    ax = axs[1]
+
+def fig_estimates(outdir):
+    """Every attempt to estimate lambda, grouped by design."""
+    I = pd.read_csv(os.path.join(RES, "identification_summary.csv"))
+    fig, ax = plt.subplots(figsize=(W2 * 0.62, 4.6))
     ax.axvline(0, color=C0, lw=0.8, ls="--")
     ax.axvline(1, color=C1, lw=0.8, ls="--")
-    order = ["within session: epoch fluctuations, eyes open",
+    order = ["between conditions: eyes closed vs open",
+             "within session: epoch fluctuations, eyes open",
              "within session: segment fluctuations, eyes closed",
              "within session: segment fluctuations, eyes open",
              "within session: epoch fluctuations, intracranial",
              "between sessions: test-retest",
              "between doses: propofol baseline vs moderate"]
-    headers = {order[0]: "ds003690, eyes open (within session)",
-               order[1]: "Dortmund, eyes closed (within session)",
-               order[2]: "Dortmund, eyes open (within session)",
-               order[3]: "Intracranial rest, ds003688 (within session)",
-               order[4]: "Test-retest (between sessions)",
-               order[5]: "Chennu, propofol baseline vs moderate (between doses)"}
+    headers = {order[0]: "HBN, eyes closed vs open (2,396 children)",
+               order[1]: "ds003690, eyes open (within session)",
+               order[2]: "Dortmund, eyes closed (within session)",
+               order[3]: "Dortmund, eyes open (within session)",
+               order[4]: "Intracranial rest, 50 patients (within session)",
+               order[5]: "Test-retest (between sessions)",
+               order[6]: "Propofol, baseline vs moderate (20 volunteers)"}
     y, ticks, labels = 0, [], []
     for g in order:
         G_ = I[I.design == g]
@@ -670,7 +611,7 @@ def fig6(outdir):
                     .replace("after 2-h tasks", "after tasks")
                     .replace("covariates: ", "").replace("censor ", "")
                     .replace("flanks 3-6, 26-36", "flanks"))
-            ax.plot([r.lo, r.hi], [y, y], color=INK, lw=1)
+            ax.plot([r.lo, min(r.hi, 2.2)], [y, y], color=INK, lw=1)
             ax.plot(r.lam, y, "o", color=INK, ms=3.5)
             ticks.append(y)
             labels.append(spec)
@@ -680,14 +621,60 @@ def fig6(outdir):
     ax.set_yticklabels(labels, fontsize=5.5)
     ax.set_ylim(y - 0.6, -0.8)
     ax.set_xlim(-0.8, 2.2)
-    ax.set_xlabel("Estimated coupling (95% interval; 0 additive, 1 multiplicative)")
-    ax.set_title("Estimating λ from the data", loc="left", color=INK2)
+    ax.set_xlabel("Estimated λ (95% interval; 0 additive, 1 multiplicative)")
+    fig.tight_layout()
+    save(fig, outdir, "fig4_estimates_by_design")
+
+
+def figs_spatial(outdir):
+    """The spatial test and its null, fitted and fit-free (HBN eyes closed vs open)."""
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    fig, axs = plt.subplots(1, 2, figsize=(W2 * 0.7, 2.3))
+    ax = axs[0]
+    specs = [("2-40", ""), ("4-40", "_f4-40"), ("5-40", "_f5-40"), ("2-30", "_f2-30")]
+    null = pd.read_csv(os.path.join(RES, "sim_topography_null.csv"))
+    for j, (lab, tag) in enumerate(specs):
+        lo_, hi_ = (float(v) for v in lab.split("-"))
+        nn = null[(null.fit_lo == lo_) & (null.fit_hi == hi_)].r_exp_alpha
+        null_bar(ax, j, nn.min(), nn.max())
+        d = np.load(os.path.join(RES, f"hbn_topography{tag}.npz"))
+        mE, mA = np.nanmean(d["d_exponent"], 0), np.nanmean(d["d_log_a"], 0)
+        g = np.isfinite(mE) & np.isfinite(mA)
+        ax.plot(j, np.corrcoef(mE[g], mA[g])[0, 1], "o", color=C0, ms=5)
+    ax.axhline(0, color=INK2, lw=0.6)
+    ax.set_xticks(range(len(specs)))
+    ax.set_xticklabels([s_[0] + " Hz" for s_ in specs])
+    ax.set_xlabel("Aperiodic fit range")
+    ax.set_ylabel("Spatial r, Δexponent vs Δalpha maps")
+    ax.legend(handles=[Line2D([], [], marker="o", ls="none", color=C0, ms=5, label="HBN"),
+                       Patch(color=GREY, alpha=0.6,
+                             label="simulations with no\nbackground change")],
+              loc="lower left")
+    ax.set_title("Fitted-exponent test vs its null", loc="left", color=INK2)
+    panel(ax, "a")
+    ax = axs[1]
+    fr = pd.read_csv(os.path.join(RES, "hbn_topography_flanks.csv"))
+    fn = pd.read_csv(os.path.join(RES, "sim_topography_null_flanks.csv"))
+    for j, (fl, lab) in enumerate((("low", "2-4 Hz"), ("high", "30-40 Hz"))):
+        nn = fn[fn.flank == fl].r_flank_alpha
+        null_bar(ax, j, nn.min(), nn.max())
+        r = fr[(fr.flank == fl) & (fr.group == "all")].iloc[0]
+        ax.errorbar(j, r.r, yerr=[[r.r - r.lo], [r.hi - r.r]], fmt="o", color=C0,
+                    ms=5, lw=1, capsize=0)
+    ax.axhline(0, color=INK2, lw=0.6)
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(["2-4 Hz", "30-40 Hz"])
+    ax.set_xlim(-0.6, 1.6)
+    ax.set_xlabel("Flank band (no fitting)")
+    ax.set_ylabel("Spatial r, Δflank vs Δalpha maps")
+    ax.set_title("Fit-free test vs its null", loc="left", color=INK2)
     panel(ax, "b")
-    fig.tight_layout(w_pad=1.0, rect=(0, 0.04, 1, 1))
-    save(fig, outdir, "fig6_breadth_identification")
+    fig.tight_layout(w_pad=3.0)
+    save(fig, outdir, "figS3_spatial_test")
 
 
-# ---- Supplementary Figure 3 ------------------------------------------------
+# ---- Figure 5 ------------------------------------------------
 MECH_LABELS = {
     "gain": "Gain (skull, electrodes)",
     "synaptic_gain": "Synaptic gain (all currents)",
@@ -770,12 +757,12 @@ def figs3(outdir):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("outdir")
-    ap.add_argument("--only", default="1,2,3,4,5,6,7,8,9")
+    ap.add_argument("--only", default="1,2,3,4,5,11,12,13,14,15")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     todo = {int(x) for x in a.only.split(",")}
-    for k, fn in ((1, fig1), (2, fig2), (3, fig3), (4, fig4), (5, fig5),
-                  (6, figs1), (7, figs2), (8, fig6), (9, figs3)):
+    for k, fn in ((1, fig1), (2, fig4), (3, fig_claims), (4, fig_estimates), (5, figs3),
+                  (11, fig2), (12, fig3), (13, figs_spatial), (14, figs1), (15, figs2)):
         if k in todo:
             fn(a.outdir)
 
