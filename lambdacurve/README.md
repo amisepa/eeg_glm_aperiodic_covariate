@@ -10,9 +10,10 @@ exponent, and a null for group statistics run through your own pipeline.
 
 With `a` the periodic and `b` the aperiodic power in a band, the coupling
 exponent λ sets how the two combine, `a = c · b^λ`, with `c` the intrinsic
-strength of the oscillation. Removing the background assumes a λ: subtracting
-it in linear power (IRASA) assumes λ = 0, dividing it out (specparam, dB
-baselines) assumes λ = 1. Periodic power under an assumed λ is
+strength of the oscillation. Estimating the background assumes no λ, but removing
+it does: subtracting it in linear power (as in IRASA's oscillatory spectrum)
+assumes λ = 0, dividing it out (specparam's peak heights, dB baselines)
+assumes λ = 1. Periodic power under an assumed λ is
 `y = ln a − λ ln b`, so any linear effect on `y` is linear in λ:
 
     s(λ) = s_a − λ s_b

@@ -2,8 +2,8 @@
 
 With a the periodic and b the aperiodic power in a band, periodic power
 under an assumed lambda is y = ln a - lambda ln b: lambda = 0 subtracts the
-background in linear power (as IRASA does), lambda = 1 divides it out (as
-specparam and dB baselines do). Any linear effect on y is linear in lambda,
+background in linear power (as IRASA's oscillatory spectrum does), lambda = 1
+divides it out (as specparam's peak heights and dB baselines do). Any linear effect on y is linear in lambda,
 
     s(lambda) = s_a - lambda s_b,
 

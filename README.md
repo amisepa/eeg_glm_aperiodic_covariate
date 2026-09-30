@@ -6,9 +6,11 @@ sccn/OneOverF collaboration (separation pillar).
 
 Removing the aperiodic background from a spectrum always involves an
 assumption about how it combines with the oscillations. Subtracting it in
-linear power (as IRASA does) assumes the two are added. Subtracting it in log
-power (as specparam does) assumes the oscillation scales with the
-background. This repository treats that assumption as a parameter, the
+linear power (as in IRASA's oscillatory spectrum, defined as mixed minus
+fractal) assumes the two are added. Subtracting it in log power (as in
+specparam's peak heights) assumes the oscillation scales with the background.
+Estimating the background commits to neither; the assumption comes with the
+removal step. This repository treats that assumption as a parameter, the
 coupling exponent λ:
 
     P(f) = L(f) + Σ aₙ Gₙ(f) L(f)^λ
