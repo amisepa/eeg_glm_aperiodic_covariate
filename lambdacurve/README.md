@@ -74,12 +74,35 @@ bp = band_power(P, f, band=(8, 12), fit_range=(2, 40), censor=[(6, 16)])
 # quantity that grows with the background.
 ```
 
+From an existing table of specparam parameters (one row per participant):
+
+```python
+from lambdacurve import from_specparam
+la, lb = from_specparam(offset, exponent, cf, pw)      # knee=... for the knee mode
+r = lambda_curve(la, lb, x=age, covariates=sex, dropna=True)
+# specparam's pw is a log10 ratio to the background, so pw itself is the
+# lambda = 1 measure; a = (10**pw - 1) * b is the power above the background.
+# Rows with no detected peak are nan: report r.n_dropped.
+```
+
+The same from the command line, for a CSV with one row per participant
+(`scripts/age_effect.py`, needs pandas; only summary numbers are written):
+
+    python scripts/age_effect.py table.csv --x age --covariates sex --id subject
+    python scripts/age_effect.py spectra.csv --spectra --x age --covariates sex
+
+A specparam table recovers λ* when the rhythm scales with the background but
+pulls an independent rhythm towards 1 (λ* of −0.05 read as 0.17 to 0.35 in
+`code/sim_specparam_route.py`): treat it as a first look and prefer
+`--spectra`.
+
 ## Contents
 
 | function | what |
 |---|---|
 | `fit_aperiodic`, `ap_eval`, `fit_mask` | fixed, plateau, knee, knee_plateau models, fitted by Whittle deviance |
 | `band_power`, `peak_frequency` | total, background `b` (plateau excluded) and periodic `a = total − b − plateau` in a band |
+| `from_specparam` | `ln a` and `ln b` at the peak from specparam's offset, exponent, (knee), CF and PW |
 | `lambda_curve` → `LambdaCurve` | `s_a`, `s_b`, λ*, pairs-bootstrap CI, Bayesian-bootstrap HDI, share of draws with λ* in [0, 1], the curve, `effect(λ)` |
 | `verdict` | holds under both / reverses / depends on lambda / null under both, from the intervals at λ = 0 and 1 |
 | `coupling_two_conditions` | log-free λ from two conditions, split-half band powers, subject bootstrap |

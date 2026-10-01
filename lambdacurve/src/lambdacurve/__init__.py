@@ -2,6 +2,7 @@
 
     fit_aperiodic, ap_eval, ap_band_power, fit_mask   aperiodic models (Whittle)
     band_power, peak_frequency                        a, b and total in a band
+    from_specparam                                    ln a, ln b from specparam parameters
     lambda_curve, verdict                             effect as a function of lambda, lambda*
     coupling_two_conditions, coupling_levels          log-free estimates of lambda
     matched_null, spectral_noise                      null of a group statistic through
@@ -12,10 +13,11 @@ from .bandpower import band_power, peak_frequency
 from .coupling import Coupling, coupling_levels, coupling_two_conditions
 from .curve import VERDICTS, LambdaCurve, hdi, lambda_curve, verdict
 from .null import NullDistribution, matched_null, spectral_noise
+from .specparam import from_specparam
 
 __version__ = "0.1.0"
 
 __all__ = ["MODELS", "ap_band_power", "ap_eval", "fit_aperiodic", "fit_mask",
-           "band_power", "peak_frequency", "Coupling", "coupling_levels",
+           "band_power", "peak_frequency", "from_specparam", "Coupling", "coupling_levels",
            "coupling_two_conditions", "VERDICTS", "LambdaCurve", "hdi", "lambda_curve",
            "verdict", "NullDistribution", "matched_null", "spectral_noise"]
