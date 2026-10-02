@@ -6,7 +6,7 @@
 
 clear; close all; clc
 
-repo_path = '/Users/cedriccannard/Documents/MATLAB/eeg_glm_aperiodic_covariate';
+repo_path = fileparts(fileparts(mfilename('fullpath')));  % repo root (this file is in archive/)
 cd(repo_path)
 
 rng(7);

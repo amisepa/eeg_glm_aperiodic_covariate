@@ -67,7 +67,7 @@
 %
 % Cedric Cannard, January 2026
 clear; close all; clc
-repo_path = 'C:\Users\ccann\Documents\MATLAB\eeg_glm_aperiodic_covariate';
+repo_path = fileparts(fileparts(mfilename('fullpath')));  % repo root (this file is in archive/)
 cd(repo_path)
 rng(42);
 
